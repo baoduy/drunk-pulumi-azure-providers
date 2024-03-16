@@ -1,9 +1,17 @@
 {
   "name": "@drunk-pulumi/azure-providers",
   "version": "0.0.1",
+  "author": "drunkcoding@outlook.com",
+  "description": "The custom dynamic providers for pulumi-azure",
+  "license": "MIT",
+  "private": false,
   "pulumi": {
     "resource": true,
     "name": "@drunk-pulumi/azure-providers"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baoduy/drunk-pulumi-azure-providers.git"
   },
   "scripts": {
     "build": "cross-env NODE_ENV=production npm run fix-issue && npm run update-tsconfig && npx tsc && npm run copy-pkg",

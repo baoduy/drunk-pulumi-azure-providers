@@ -92,6 +92,6 @@ jobs:
         if: ${{ env.Enable_Release == 'true' }}
         run: |
           cd .out-bin
-          npm publish
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
