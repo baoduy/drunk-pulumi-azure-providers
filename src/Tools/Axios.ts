@@ -1,11 +1,9 @@
 import axios from 'axios';
 import { DefaultAzureCredential } from '@azure/identity';
+import {subscriptionId} from "../AzBase/Internal";
 
 export const createAxios = () => {
-  const config = JSON.parse(process.env.PULUMI_CONFIG ?? '{}');
-   const subscriptionId = config[
-      'azure-native:config:subscriptionId'
-      ] as string;
+
 
   const credentials = new DefaultAzureCredential();
   let token: string | undefined;
