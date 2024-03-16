@@ -92,6 +92,8 @@ jobs:
         if: ${{ env.Enable_Release == 'true' }}
         run: |
           cd .out-bin
-          npm publish --access public
+          npm config set //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN
+          npm config set scope "@drunk-pulumi"
+          npm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
