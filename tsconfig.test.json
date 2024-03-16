@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "noImplicitAny": false
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.d.ts",
+    "z_tests/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".out-bin",
+    ".tools",
+  ]
+}

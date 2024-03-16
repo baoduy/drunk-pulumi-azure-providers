@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "outDir": "./.out-bin",
+    "target": "ESNext",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "inlineSourceMap": true,
+    "stripInternal": true,
+    "experimentalDecorators": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": true,
+    "strict": true
+  },
+  "files": [
+    "src/ApimSignInSettings.ts",
+    "src/ApimSignUpSettings.ts",
+    "src/AppConfigDisableAccessKeys.ts",
+    "src/AzBase/KeyVaultBase.ts",
+    "src/AzBase/KeyVaultCache.ts",
+    "src/BaseProvider.ts",
+    "src/NetworkRuote.ts",
+    "src/PGPGenerator.ts",
+    "src/SshKeyGenerator.ts",
+    "src/StartStopAKS.ts",
+    "src/StartStopPostgresFlexibleServer.ts",
+    "src/Tools/Axios.ts",
+    "src/VaultSecret.ts",
+    "src/types.ts"
+  ],
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "z_tests",
+    ".out-bin",
+    ".tools",
+    "**/*.test.ts"
+  ]
+}
