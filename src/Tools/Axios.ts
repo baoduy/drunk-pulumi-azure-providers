@@ -3,8 +3,6 @@ import { DefaultAzureCredential } from '@azure/identity';
 import {subscriptionId} from "../AzBase/Internal";
 
 export const createAxios = () => {
-
-
   const credentials = new DefaultAzureCredential();
   let token: string | undefined;
   let baseUrl: string | undefined;

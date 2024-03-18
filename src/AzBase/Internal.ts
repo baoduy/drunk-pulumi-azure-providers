@@ -1,4 +1,5 @@
-const config = JSON.parse(process.env.PULUMI_CONFIG ?? '{}');
-export const subscriptionId = config[
-    'azure-native:config:subscriptionId'
-    ] as string;
+import { authorization } from "@pulumi/azure-native";
+
+export const getToken = (resource:string='https://management.azure.com')=>{
+const rs = Promise.all(authorization.)
+}

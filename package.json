@@ -5,7 +5,10 @@
   "description": "The custom dynamic providers for pulumi-azure",
   "license": "MIT",
   "private": false,
-  "keywords": ["pulumi-azure","dynamic providers"],
+  "keywords": [
+    "pulumi-azure",
+    "dynamic providers"
+  ],
   "pulumi": {
     "resource": true,
     "name": "@drunk-pulumi/azure-providers"
@@ -53,6 +56,7 @@
     "@azure/keyvault-keys": "^4.8.0",
     "@azure/keyvault-secrets": "^4.8.0",
     "@openpgp/web-stream-tools": "^0.1.1",
+    "@pulumi/azure-native": "^2.32.0",
     "@pulumi/pulumi": "^3.111.1",
     "axios": "^1.6.8",
     "node-forge": "^1.3.1",
