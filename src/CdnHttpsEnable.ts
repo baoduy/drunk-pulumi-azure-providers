@@ -1,5 +1,5 @@
-import * as pulumi from '@pulumi/pulumi';
-import axios, { AxiosError } from 'axios';
+import * as pulumi from "@pulumi/pulumi";
+import axios, { AxiosError } from "axios";
 
 import {
   BaseOptions,
@@ -7,35 +7,34 @@ import {
   DefaultInputs,
   DefaultOutputs,
   BaseProvider,
-} from './BaseProvider';
-import {subscriptionId} from "./AzBase/Internal";
-
+} from "./BaseProvider";
+import { getAzureToken } from "./AzBase/Internal";
 
 interface CdnManagedHttpsParameters {
-  certificateSource: 'Cdn';
+  certificateSource: "Cdn";
   certificateSourceParameters: {
-    certificateType: 'Dedicated';
-    '@odata.type': '#Microsoft.Azure.Cdn.Models.CdnCertificateSourceParameters';
+    certificateType: "Dedicated";
+    "@odata.type": "#Microsoft.Azure.Cdn.Models.CdnCertificateSourceParameters";
   };
-  protocolType: 'ServerNameIndication' | 'IPBased';
-  minimumTlsVersion: 'TLS12';
+  protocolType: "ServerNameIndication" | "IPBased";
+  minimumTlsVersion: "TLS12";
 }
 
 interface UserManagedHttpsParameters {
-  certificateSource: 'AzureKeyVault';
+  certificateSource: "AzureKeyVault";
   certificateSourceParameters: {
-    '@odata.type': '#Microsoft.Azure.Cdn.Models.KeyVaultCertificateSourceParameters';
+    "@odata.type": "#Microsoft.Azure.Cdn.Models.KeyVaultCertificateSourceParameters";
     subscriptionId: string;
-    deleteRule: 'NoAction';
-    updateRule: 'NoAction';
+    deleteRule: "NoAction";
+    updateRule: "NoAction";
 
     resourceGroupName: string;
     secretName: string;
     secretVersion: string;
     vaultName: string;
   };
-  protocolType: 'ServerNameIndication' | 'IPBased';
-  minimumTlsVersion: 'TLS12';
+  protocolType: "ServerNameIndication" | "IPBased";
+  minimumTlsVersion: "TLS12";
 }
 
 export interface CdnHttpsEnableInputs extends DefaultInputs {
@@ -83,47 +82,44 @@ class CdnHttpsEnableProvider
   // }
 
   async create(
-    props: CdnHttpsEnableInputs
+    props: CdnHttpsEnableInputs,
   ): Promise<pulumi.dynamic.CreateResult> {
-
+    const info = await getAzureToken();
     const url = `/${props.customDomainId}/enableCustomHttps?api-version=2019-12-31`;
-
     let data: CdnManagedHttpsParameters | UserManagedHttpsParameters;
 
     if (props.vaultSecretInfo) {
       data = {
-        certificateSource: 'AzureKeyVault',
+        certificateSource: "AzureKeyVault",
         certificateSourceParameters: {
-          '@odata.type':
-            '#Microsoft.Azure.Cdn.Models.KeyVaultCertificateSourceParameters',
-          deleteRule: 'NoAction',
-          updateRule: 'NoAction',
-          subscriptionId,
+          "@odata.type":
+            "#Microsoft.Azure.Cdn.Models.KeyVaultCertificateSourceParameters",
+          deleteRule: "NoAction",
+          updateRule: "NoAction",
+          subscriptionId: info.subscriptionId,
           ...props.vaultSecretInfo,
         },
-        protocolType: 'ServerNameIndication',
-        minimumTlsVersion: 'TLS12',
+        protocolType: "ServerNameIndication",
+        minimumTlsVersion: "TLS12",
       } as UserManagedHttpsParameters;
     } else {
       data = {
-        certificateSource: 'Cdn',
+        certificateSource: "Cdn",
         certificateSourceParameters: {
-          certificateType: 'Dedicated',
-          '@odata.type':
-            '#Microsoft.Azure.Cdn.Models.CdnCertificateSourceParameters',
+          certificateType: "Dedicated",
+          "@odata.type":
+            "#Microsoft.Azure.Cdn.Models.CdnCertificateSourceParameters",
         },
-        protocolType: 'ServerNameIndication',
-        minimumTlsVersion: 'TLS12',
+        protocolType: "ServerNameIndication",
+        minimumTlsVersion: "TLS12",
       } as CdnManagedHttpsParameters;
     }
 
-    await axios
-      .post(url, data)
-      .catch((error: AxiosError) => {
-        console.log(error.response?.data);
-        //If already enabled then ignore
-        if (![409, 405].includes(error.response!.status)) throw error;
-      });
+    await axios.post(url, data).catch((error: AxiosError) => {
+      console.log(error.response?.data);
+      //If already enabled then ignore
+      if (![409, 405].includes(error.response!.status)) throw error;
+    });
 
     return {
       id: props.customDomainId,
@@ -149,13 +145,13 @@ export default class CdnHttpsEnableResource extends BaseResource<
   constructor(
     name: string,
     props: BaseOptions<CdnHttpsEnableInputs>,
-    opts?: pulumi.CustomResourceOptions
+    opts?: pulumi.CustomResourceOptions,
   ) {
     super(
       new CdnHttpsEnableProvider(name),
       `azure-native:custom:CdnHttpsEnableProvider:${name}`,
       props,
-      opts
+      opts,
     );
     this.name = name;
   }

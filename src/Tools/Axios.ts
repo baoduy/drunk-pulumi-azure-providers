@@ -1,9 +1,7 @@
-import axios from 'axios';
-import { DefaultAzureCredential } from '@azure/identity';
-import {subscriptionId} from "../AzBase/Internal";
+import axios from "axios";
+import { getAzureToken } from "../AzBase/Internal";
 
 export const createAxios = () => {
-  const credentials = new DefaultAzureCredential();
   let token: string | undefined;
   let baseUrl: string | undefined;
 
@@ -11,23 +9,18 @@ export const createAxios = () => {
 
   axiosWrapper.interceptors.request.use(async (config) => {
     if (!token) {
-      const tokenRequest = await credentials.getToken(
-        'https://management.azure.com'
-      );
-      token = tokenRequest?.token;
-      baseUrl = `https://management.azure.com/subscriptions/${subscriptionId}`;
+      const info = await getAzureToken("https://management.azure.com");
+      token = info.token;
+      baseUrl = `https://management.azure.com/subscriptions/${info.subscriptionId}`;
     }
 
-    if ( !config.url!.startsWith('http')) {
-      config.url = config.url!.includes('subscriptions')
-        ? 'https://management.azure.com' + config.url
+    if (!config.url!.startsWith("http")) {
+      config.url = config.url!.includes("subscriptions")
+        ? "https://management.azure.com" + config.url
         : baseUrl + config.url!;
     }
 
-    if (token) {
-      config.headers.set('Authorization', `Bearer ${token}`);
-    }
-
+    config.headers.set("Authorization", `Bearer ${token}`);
     return config;
   });
 
