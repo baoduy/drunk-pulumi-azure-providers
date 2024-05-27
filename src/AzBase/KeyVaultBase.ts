@@ -1,7 +1,7 @@
-import { SecretClient, SecretProperties } from '@azure/keyvault-secrets';
-import { DefaultAzureCredential } from '@azure/identity';
-import { KeyClient } from '@azure/keyvault-keys';
-import { getKeyVaultCache, KeyVaultCacheType } from './KeyVaultCache';
+import { SecretClient, SecretProperties } from "@azure/keyvault-secrets";
+import { DefaultAzureCredential } from "@azure/identity";
+import { KeyClient } from "@azure/keyvault-keys";
+import { getKeyVaultCache, KeyVaultCacheType } from "./KeyVaultCache";
 
 const isDryRun = Boolean(process.env.PULUMI_NODEJS_DRY_RUN);
 
@@ -26,7 +26,7 @@ function getClients(keyVaultName: string): ClientType {
 async function getSecretVersions(
   name: string,
   version: string | undefined = undefined,
-  client: ClientType
+  client: ClientType,
 ) {
   const rs = client.secretClient
     .listPropertiesOfSecretVersions(name)
@@ -46,7 +46,7 @@ async function getSecretVersions(
 async function getKeyVersions(
   name: string,
   version: string | undefined = undefined,
-  client: ClientType
+  client: ClientType,
 ) {
   const rs = client.keyClient
     .listPropertiesOfKeyVersions(name)
@@ -66,7 +66,7 @@ async function getKeyVersions(
 async function checkSecretExist(
   name: string,
   version: string | undefined = undefined,
-  client: ClientType
+  client: ClientType,
 ) {
   const versions = await getSecretVersions(name, version, client);
 
@@ -83,11 +83,13 @@ async function checkSecretExist(
 async function checkKeyExist(
   name: string,
   version: string | undefined = undefined,
-  client: ClientType
+  client: ClientType,
 ) {
-  const versions = await getKeyVersions(name, version, client);
+  const versions = await getKeyVersions(name, version, client).catch(
+    () => undefined,
+  );
 
-  if (versions.length > 0) {
+  if (versions && versions.length > 0) {
     console.log(`The key '${name}' is existed.`);
     return true;
   }
@@ -144,7 +146,7 @@ async function setSecret(
   value: string,
   contentType: string | undefined = undefined,
   tags: { [p: string]: string } | undefined = undefined,
-  client: ClientType
+  client: ClientType,
 ) {
   if (isDryRun) return undefined;
 
@@ -160,20 +162,20 @@ async function setSecret(
 async function createRsaKey(
   name: string,
   tags: { [p: string]: string } | undefined = undefined,
-  client: ClientType
+  client: ClientType,
 ) {
   if (isDryRun) return undefined;
 
   await recoverDeletedKey(name, client);
   const expiresOn = new Date(
-    new Date().setFullYear(new Date().getFullYear() + 3)
+    new Date().setFullYear(new Date().getFullYear() + 3),
   );
 
   return await client.keyClient.createRsaKey(name, {
     enabled: true,
     tags,
     keySize: 2048,
-    keyOps: ['decrypt', 'encrypt', 'sign', 'verify', 'wrapKey', 'unwrapKey'],
+    keyOps: ["decrypt", "encrypt", "sign", "verify", "wrapKey", "unwrapKey"],
     expiresOn,
   });
 }
@@ -183,7 +185,7 @@ async function getSecret(
   name: string,
   version: string | undefined = undefined,
   client: ClientType,
-  cache: KeyVaultCacheType
+  cache: KeyVaultCacheType,
 ) {
   let result = cache.getSecret(name);
   if (result) return result;
@@ -204,7 +206,7 @@ async function getKey(
   name: string,
   version: string | undefined = undefined,
   client: ClientType,
-  cache: KeyVaultCacheType
+  cache: KeyVaultCacheType,
 ) {
   let result = cache.getKey(name);
   if (result) return result;
@@ -221,9 +223,9 @@ async function getKey(
 /** Get or create Key */
 async function getOrCreateKey(
   name: string,
-  type: 'Rsa' = 'Rsa',
+  type: "Rsa" = "Rsa",
   client: ClientType,
-  cache: KeyVaultCacheType
+  cache: KeyVaultCacheType,
 ) {
   if (await checkKeyExist(name, undefined, client))
     return await getKey(name, undefined, client, cache);
@@ -259,9 +261,9 @@ export function getKeyVaultBase(keyVaultName: string) {
       name: string,
       value: string,
       contentType: string | undefined = undefined,
-      tags: { [p: string]: string } | undefined = undefined
+      tags: { [p: string]: string } | undefined = undefined,
     ) => setSecret(name, value, contentType, tags, clients),
-    getOrCreateKey: (name: string, type: 'Rsa' = 'Rsa') =>
+    getOrCreateKey: (name: string, type: "Rsa" = "Rsa") =>
       getOrCreateKey(name, type, clients, cache),
     deleteSecret: (name: string) => deleteSecret(name, clients),
     deleteKey: (name: string) => deleteKey(name, clients),
