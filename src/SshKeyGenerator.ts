@@ -1,5 +1,5 @@
-import * as forge from 'node-forge';
-import * as pulumi from '@pulumi/pulumi';
+import * as forge from "node-forge";
+import * as pulumi from "@pulumi/pulumi";
 
 import {
   BaseOptions,
@@ -7,16 +7,16 @@ import {
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from './BaseProvider';
+} from "./BaseProvider";
 
-import { generateKeyPair, RSAKeyPairOptions } from 'crypto';
-import { getKeyVaultBase } from './AzBase/KeyVaultBase';
-import { KeyVaultInfo } from './types';
+import { generateKeyPair, RSAKeyPairOptions } from "crypto";
+import { getKeyVaultBase } from "./AzBase/KeyVaultBase";
+import { KeyVaultInfo } from "./types";
 
-const generateKeys = (options: RSAKeyPairOptions<'pem', 'pem'>) =>
+const generateKeys = (options: RSAKeyPairOptions<"pem", "pem">) =>
   new Promise<{ publicKey: string; privateKey: string }>((resolve, reject) => {
     generateKeyPair(
-      'rsa',
+      "rsa",
       options,
       (err: Error | null, pK: string, prK: string) => {
         if (err) reject(err);
@@ -39,8 +39,8 @@ const generateKeys = (options: RSAKeyPairOptions<'pem', 'pem'>) =>
 interface SshKeyInputs extends DefaultInputs {
   password: string;
   vaultInfo: KeyVaultInfo;
-  publicKeyName: string;
-  privateKeyName: string;
+  publicKeyName?: string;
+  privateKeyName?: string;
 }
 
 interface SshKeyOutputs extends SshKeyInputs, DefaultOutputs {
@@ -72,13 +72,13 @@ class SshKeyResourceProvider
     const { publicKey, privateKey } = await generateKeys({
       modulusLength: 4096,
       publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem',
+        type: "spki",
+        format: "pem",
       },
       privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem',
-        cipher: 'aes-256-cbc',
+        type: "pkcs8",
+        format: "pem",
+        cipher: "aes-256-cbc",
         passphrase: inputs.password,
       },
     });
@@ -87,13 +87,13 @@ class SshKeyResourceProvider
     const client = getKeyVaultBase(inputs.vaultInfo.name);
 
     await client.setSecret(
-      `${this.name}-${inputs.publicKeyName}`,
+      inputs.publicKeyName ?? `${this.name}-publicKey`,
       publicKey,
       this.name
     );
 
     await client.setSecret(
-        `${this.name}-${inputs.privateKeyName}`,
+      inputs.privateKeyName ?? `${this.name}-privateKey`,
       privateKey,
       this.name
     );
