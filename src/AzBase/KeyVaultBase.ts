@@ -85,9 +85,9 @@ async function checkKeyExist(
   version: string | undefined = undefined,
   client: ClientType,
 ) {
-  const versions = await getKeyVersions(name, version, client).catch(
-    () => undefined,
-  );
+  const versions = (
+    await getKeyVersions(name, version, client).catch(() => undefined)
+  )?.filter((a) => a.enabled);
 
   if (versions && versions.length > 0) {
     console.log(`The key '${name}' is existed.`);
