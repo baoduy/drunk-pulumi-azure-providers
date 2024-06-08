@@ -19,6 +19,15 @@ interface VaultNetworkInputs extends DefaultInputs {
 
 interface VaultNetworkOutputs extends VaultNetworkInputs, DefaultOutputs {}
 
+const updateSet = (
+  currentSet: Set<string>,
+  oldItems: string[] | undefined,
+  newItems: string[] | undefined,
+) => {
+  oldItems?.forEach((item) => currentSet.delete(item));
+  newItems?.forEach((item) => currentSet.add(item));
+};
+
 class VaultNetworkProvider
   implements BaseProvider<VaultNetworkInputs, VaultNetworkOutputs>
 {
@@ -62,25 +71,9 @@ class VaultNetworkProvider
     const currentSubnets = new Set<string>(
       vaultInfo.properties.networkAcls?.virtualNetworkRules?.map((i) => i.id),
     );
-    //Remove the olds Ips
-    if (olds.ipAddresses)
-      olds.ipAddresses.forEach((i) => {
-        currentIps.delete(i);
-      });
-    if (olds.subnetIds)
-      olds.subnetIds.forEach((i) => {
-        currentSubnets.delete(i);
-      });
 
-    //Add the new one
-    if (news.ipAddresses)
-      news.ipAddresses.forEach((i) => {
-        currentIps.add(i);
-      });
-    if (news.subnetIds)
-      news.subnetIds.forEach((i) => {
-        currentSubnets.add(i);
-      });
+    updateSet(currentIps, olds.ipAddresses, news.ipAddresses);
+    updateSet(currentSubnets, olds.subnetIds, news.subnetIds);
 
     //Update the new VaultInfo
     let updated = false;
