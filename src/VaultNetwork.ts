@@ -13,10 +13,8 @@ interface VaultNetworkInputs extends DefaultInputs {
   subscriptionId: string;
   resourceGroupName: string;
   vaultName: string;
-  networkAcls?: {
-    ipAddresses?: string[];
-    subnetIds?: Array<string>;
-  };
+  ipAddresses?: string[];
+  subnetIds?: Array<string>;
 }
 
 interface VaultNetworkOutputs extends VaultNetworkInputs, DefaultOutputs {}
@@ -29,7 +27,12 @@ class VaultNetworkProvider
   public async create(inputs: VaultNetworkInputs) {
     await this.update(
       this.name,
-      { name: this.name, ...inputs, networkAcls: undefined },
+      {
+        name: this.name,
+        ...inputs,
+        ipAddresses: undefined,
+        subnetIds: undefined,
+      },
       inputs,
     );
     return {
@@ -60,23 +63,24 @@ class VaultNetworkProvider
       vaultInfo.properties.networkAcls?.virtualNetworkRules?.map((i) => i.id),
     );
     //Remove the olds Ips
-    if (olds.networkAcls) {
-      olds.networkAcls.ipAddresses?.forEach((i) => {
+    if (olds.ipAddresses)
+      olds.ipAddresses.forEach((i) => {
         currentIps.delete(i);
       });
-      olds.networkAcls.subnetIds?.forEach((i) => {
+    if (olds.subnetIds)
+      olds.subnetIds.forEach((i) => {
         currentSubnets.delete(i);
       });
-    }
+
     //Add the new one
-    if (news.networkAcls) {
-      news.networkAcls.ipAddresses?.forEach((i) => {
+    if (news.ipAddresses)
+      news.ipAddresses.forEach((i) => {
         currentIps.add(i);
       });
-      news.networkAcls.subnetIds?.forEach((i) => {
+    if (news.subnetIds)
+      news.subnetIds.forEach((i) => {
         currentSubnets.add(i);
       });
-    }
 
     //Update the new VaultInfo
     let updated = false;
@@ -106,7 +110,11 @@ class VaultNetworkProvider
   }
 
   public async delete(id: string, props: VaultNetworkOutputs) {
-    await this.update(id, props, { ...props, networkAcls: undefined });
+    await this.update(id, props, {
+      ...props,
+      ipAddresses: undefined,
+      subnetIds: undefined,
+    });
   }
 }
 
