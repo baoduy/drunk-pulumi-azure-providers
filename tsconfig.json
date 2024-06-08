@@ -29,7 +29,9 @@
     "src/StartStopAKS.ts",
     "src/StartStopPostgresFlexibleServer.ts",
     "src/Tools/Axios.ts",
+    "src/VaultNetwork.ts",
     "src/VaultSecret.ts",
+    "src/index.ts",
     "src/types.ts"
   ],
   "include": [

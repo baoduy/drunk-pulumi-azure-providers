@@ -1,5 +1,5 @@
-import * as pulumi from '@pulumi/pulumi';
-import { createAxios } from './Tools/Axios';
+import * as pulumi from "@pulumi/pulumi";
+import { createAxios } from "./Tools/Axios";
 
 import {
   BaseOptions,
@@ -7,9 +7,9 @@ import {
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from './BaseProvider';
-import * as console from 'console';
-import { AxiosError } from 'axios';
+} from "./BaseProvider";
+import * as console from "console";
+import { AxiosError } from "axios";
 
 interface StartStopAKSInputs extends DefaultInputs {
   resourceGroupName: string;
@@ -23,14 +23,14 @@ export interface AksResult {
   location: string;
   name: string;
   type: string;
-  properties: Properties;
+  properties: AksProperties;
 }
 
-export interface Properties {
-  powerState: PowerState;
+export interface AksProperties {
+  powerState: AksPowerState;
 }
 
-export interface PowerState {
+export interface AksPowerState {
   code: string;
 }
 
@@ -53,7 +53,7 @@ const startStopAKS = async ({
   //POST https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ContainerService/managedClusters/{resourceName}/stop?api-version=2023-02-01
 
   const url = `/resourceGroups/${resourceGroupName}/providers/Microsoft.ContainerService/managedClusters/${resourceName}/${
-    start ? 'start' : 'stop'
+    start ? "start" : "stop"
   }?api-version=2023-02-01`;
   //console.log('StartStopAKS', url);StartStopAKS.ts
 
@@ -61,7 +61,7 @@ const startStopAKS = async ({
     .post(url)
     //.then((rs) => rs.data)
     .catch((err: AxiosError) => {
-      console.log('StartStopAKS', err.response?.data || err);
+      console.log("StartStopAKS", err.response?.data || err);
       throw err;
     });
 };
@@ -74,19 +74,19 @@ class StartStopAKSResourceProvider
   async diff(
     id: string,
     previousOutput: StartStopAKSOutputs,
-    news: StartStopAKSInputs
+    news: StartStopAKSInputs,
   ): Promise<pulumi.dynamic.DiffResult> {
     const rs = await getAksStatus(news);
 
     return {
       deleteBeforeReplace: false,
       replaces: [],
-      changes: rs.properties.powerState.code !== 'Stopped',
+      changes: rs.properties.powerState.code !== "Stopped",
     };
   }
 
   async create(
-    inputs: StartStopAKSInputs
+    inputs: StartStopAKSInputs,
   ): Promise<pulumi.dynamic.CreateResult> {
     await startStopAKS({ ...inputs, start: false });
     return {
@@ -98,7 +98,7 @@ class StartStopAKSResourceProvider
   async update(
     id: string,
     olds: StartStopAKSOutputs,
-    news: StartStopAKSInputs
+    news: StartStopAKSInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
     //Ignored the error if cluster already stopped
 
@@ -120,13 +120,13 @@ export class StartStopAKSResource extends BaseResource<
   constructor(
     name: string,
     args: BaseOptions<StartStopAKSInputs>,
-    opts?: pulumi.CustomResourceOptions
+    opts?: pulumi.CustomResourceOptions,
   ) {
     super(
       new StartStopAKSResourceProvider(name),
       `csp:StartStopAKSs:${name}`,
       args,
-      opts
+      opts,
     );
     this.name = name;
   }
