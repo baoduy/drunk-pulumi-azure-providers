@@ -13,6 +13,8 @@ type ClientType = {
 
 /** Get Secret and Hey Clients */
 function getClients(keyVaultName: string): ClientType {
+  if (!keyVaultName) throw new Error("getClients: keyVaultName is undefined.");
+
   const url = `https://${keyVaultName}.vault.azure.net?api-version=7.0`;
   const credential = new DefaultAzureCredential();
 
@@ -248,8 +250,6 @@ async function deleteKey(name: string, client: ClientType) {
 
 /** the KeyVaultBase swapper*/
 export function getKeyVaultBase(keyVaultName: string) {
-  if (!keyVaultName) throw new Error("keyVaultName is undefined.");
-
   const clients = getClients(keyVaultName);
   const cache = getKeyVaultCache(keyVaultName);
   return {

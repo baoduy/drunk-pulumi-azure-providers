@@ -29,8 +29,6 @@ class VaultSecretResourceProvider
   constructor(private name: string) {}
 
   async create(props: VaultSecretInputs): Promise<pulumi.dynamic.CreateResult> {
-    console.log(this.name, props.vaultInfo);
-
     const client = getKeyVaultBase(props.vaultInfo.name);
 
     const n = props.name ?? this.name;
