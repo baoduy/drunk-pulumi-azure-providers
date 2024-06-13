@@ -1,14 +1,14 @@
-import * as pulumi from '@pulumi/pulumi';
-import { KeyVaultInfo } from './types';
-import { getKeyVaultBase } from './AzBase/KeyVaultBase';
+import * as pulumi from "@pulumi/pulumi";
+import { KeyVaultInfo } from "./types";
+import { getKeyVaultBase } from "./AzBase/KeyVaultBase";
 import {
   BaseOptions,
   BaseProvider,
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from './BaseProvider';
-import * as console from 'console';
+} from "./BaseProvider";
+import * as console from "console";
 
 interface VaultSecretInputs extends DefaultInputs {
   name: string;
@@ -35,16 +35,19 @@ class VaultSecretResourceProvider
       props.name,
       props.value,
       props.contentType,
-      props.tags
+      props.tags,
     );
 
-    return { id: ss!.properties.id || this.name, outs: props };
+    return {
+      id: ss!.properties.id || this.name,
+      outs: { name: props.name, contentType: props.contentType },
+    };
   }
 
   async update(
     id: string,
     olds: VaultSecretOutputs,
-    news: VaultSecretInputs
+    news: VaultSecretInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
     if (olds.ignoreChange || news.ignoreChange) {
       console.log(`${news.name} will be ignored the update.`);
@@ -69,7 +72,7 @@ class VaultSecretResourceProvider
   async diff(
     id: string,
     previousOutput: VaultSecretOutputs,
-    news: VaultSecretInputs
+    news: VaultSecretInputs,
   ): Promise<pulumi.dynamic.DiffResult> {
     return {
       deleteBeforeReplace: false,
@@ -91,13 +94,13 @@ export class VaultSecretResource extends BaseResource<
   constructor(
     name: string,
     args: BaseOptions<VaultSecretInputs>,
-    opts?: pulumi.CustomResourceOptions
+    opts?: pulumi.CustomResourceOptions,
   ) {
     super(
       new VaultSecretResourceProvider(name),
       `csp:VaultSecrets:${name}`,
       args,
-      opts
+      opts,
     );
     this.name = name;
   }
