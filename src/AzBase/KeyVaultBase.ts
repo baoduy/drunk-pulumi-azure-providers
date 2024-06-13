@@ -248,6 +248,8 @@ async function deleteKey(name: string, client: ClientType) {
 
 /** the KeyVaultBase swapper*/
 export function getKeyVaultBase(keyVaultName: string) {
+  if (!keyVaultName) throw new Error("keyVaultName is undefined.");
+
   const clients = getClients(keyVaultName);
   const cache = getKeyVaultCache(keyVaultName);
   return {
