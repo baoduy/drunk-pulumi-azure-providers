@@ -1,14 +1,14 @@
-import * as pulumi from '@pulumi/pulumi';
-import { KeyVaultInfo } from './types';
-import { getKeyVaultBase } from './AzBase/KeyVaultBase';
+import * as pulumi from "@pulumi/pulumi";
+import { KeyVaultInfo } from "./types";
+import { getKeyVaultBase } from "./AzBase/KeyVaultBase";
 import {
   BaseOptions,
   BaseProvider,
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from './BaseProvider';
-import * as console from 'console';
+} from "./BaseProvider";
+import * as console from "console";
 
 interface VaultSecretInputs extends DefaultInputs {
   name: string;
@@ -31,20 +31,28 @@ class VaultSecretResourceProvider
   async create(props: VaultSecretInputs): Promise<pulumi.dynamic.CreateResult> {
     const client = getKeyVaultBase(props.vaultInfo.name);
 
-    const ss = await client.setSecret(
-      props.name,
-      props.value,
-      props.contentType,
-      props.tags
-    );
+    const n = props.name ?? this.name;
+    if (!n) throw new Error("The name is not defined.");
 
-    return { id: ss!.properties.id || this.name, outs: props };
+    const ss = await client
+      .setSecret(
+        props.name ?? this.name,
+        props.value,
+        props.contentType,
+        props.tags,
+      )
+      .catch(console.error);
+
+    return {
+      id: ss!.properties.id || this.name,
+      outs: { name: props.name, contentType: props.contentType },
+    };
   }
 
   async update(
     id: string,
     olds: VaultSecretOutputs,
-    news: VaultSecretInputs
+    news: VaultSecretInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
     if (olds.ignoreChange || news.ignoreChange) {
       console.log(`${news.name} will be ignored the update.`);
@@ -62,14 +70,14 @@ class VaultSecretResourceProvider
 
   async delete(id: string, props: VaultSecretOutputs): Promise<void> {
     const client = getKeyVaultBase(props.vaultInfo.name);
-    return client.deleteSecret(props.name);
+    return client.deleteSecret(props.name).catch();
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async diff(
     id: string,
     previousOutput: VaultSecretOutputs,
-    news: VaultSecretInputs
+    news: VaultSecretInputs,
   ): Promise<pulumi.dynamic.DiffResult> {
     return {
       deleteBeforeReplace: false,
@@ -91,13 +99,13 @@ export class VaultSecretResource extends BaseResource<
   constructor(
     name: string,
     args: BaseOptions<VaultSecretInputs>,
-    opts?: pulumi.CustomResourceOptions
+    opts?: pulumi.CustomResourceOptions,
   ) {
     super(
       new VaultSecretResourceProvider(name),
       `csp:VaultSecrets:${name}`,
       args,
-      opts
+      opts,
     );
     this.name = name;
   }
