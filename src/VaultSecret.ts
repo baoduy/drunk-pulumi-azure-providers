@@ -34,12 +34,14 @@ class VaultSecretResourceProvider
     const n = props.name ?? this.name;
     if (!n) throw new Error("The name is not defined.");
 
-    const ss = await client.setSecret(
-      props.name ?? this.name,
-      props.value,
-      props.contentType,
-      props.tags,
-    );
+    const ss = await client
+      .setSecret(
+        props.name ?? this.name,
+        props.value,
+        props.contentType,
+        props.tags,
+      )
+      .catch(console.error);
 
     return {
       id: ss!.properties.id || this.name,
