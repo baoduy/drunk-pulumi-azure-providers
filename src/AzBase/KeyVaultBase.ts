@@ -150,7 +150,9 @@ async function setSecret(
 ) {
   if (isDryRun) return undefined;
 
+  //Try to recover the deleted secret
   await recoverDeletedSecret(name, client);
+  //Set a new value to the secret
   return await client.secretClient.setSecret(name, value, {
     enabled: true,
     contentType,

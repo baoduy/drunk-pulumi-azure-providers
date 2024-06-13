@@ -31,8 +31,11 @@ class VaultSecretResourceProvider
   async create(props: VaultSecretInputs): Promise<pulumi.dynamic.CreateResult> {
     const client = getKeyVaultBase(props.vaultInfo.name);
 
+    const n = props.name ?? this.name;
+    if (!n) throw new Error("The name is not defined.");
+
     const ss = await client.setSecret(
-      props.name,
+      props.name ?? this.name,
       props.value,
       props.contentType,
       props.tags,
@@ -65,7 +68,7 @@ class VaultSecretResourceProvider
 
   async delete(id: string, props: VaultSecretOutputs): Promise<void> {
     const client = getKeyVaultBase(props.vaultInfo.name);
-    return client.deleteSecret(props.name);
+    return client.deleteSecret(props.name).catch();
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
