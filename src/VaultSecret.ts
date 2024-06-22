@@ -13,7 +13,7 @@ import * as console from "console";
 interface VaultSecretInputs extends DefaultInputs {
   name: string;
   value: string;
-  vaultInfo: KeyVaultInfo;
+  vaultName: string;
   contentType?: string;
   ignoreChange?: boolean;
   tags?: {
@@ -29,7 +29,7 @@ class VaultSecretResourceProvider
   constructor(private name: string) {}
 
   async create(props: VaultSecretInputs): Promise<pulumi.dynamic.CreateResult> {
-    const client = getKeyVaultBase(props.vaultInfo.name);
+    const client = getKeyVaultBase(props.vaultName);
 
     const n = props.name ?? this.name;
     if (!n) throw new Error("The name is not defined.");
@@ -62,14 +62,14 @@ class VaultSecretResourceProvider
     const rs = await this.create(news);
 
     //Delete the old Secret
-    if (olds.name !== news.name || olds.vaultInfo.name !== news.vaultInfo.name)
+    if (olds.name !== news.name || olds.vaultName !== news.vaultName)
       await this.delete(id, olds).catch();
 
     return rs;
   }
 
   async delete(id: string, props: VaultSecretOutputs): Promise<void> {
-    const client = getKeyVaultBase(props.vaultInfo.name);
+    const client = getKeyVaultBase(props.vaultName);
     return client.deleteSecret(props.name).catch();
   }
 
@@ -83,7 +83,7 @@ class VaultSecretResourceProvider
       deleteBeforeReplace: false,
       changes:
         previousOutput.name !== news.name ||
-        previousOutput.vaultInfo.name !== news.vaultInfo.name ||
+        previousOutput.vaultName !== news.vaultName ||
         previousOutput.value !== news.value ||
         previousOutput.contentType !== news.contentType,
     };
