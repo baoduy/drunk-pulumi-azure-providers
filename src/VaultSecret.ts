@@ -29,6 +29,19 @@ class VaultSecretResourceProvider
   constructor(private name: string) {}
 
   async create(props: VaultSecretInputs): Promise<pulumi.dynamic.CreateResult> {
+    const rs = {
+      id: this.name,
+      outs: {
+        ...props,
+        value: undefined,
+      },
+    };
+
+    if (!props || !props.vaultName) {
+      console.error(`${this.name} - vaultName is undefined.`);
+      return rs;
+    }
+
     const client = getKeyVaultBase(props.vaultName);
 
     const n = props.name ?? this.name;
@@ -43,10 +56,8 @@ class VaultSecretResourceProvider
       )
       .catch(console.error);
 
-    return {
-      id: ss!.properties.id || this.name,
-      outs: { name: props.name, contentType: props.contentType },
-    };
+    rs.id = ss!.properties.id ?? this.name;
+    return rs;
   }
 
   async update(
@@ -55,10 +66,11 @@ class VaultSecretResourceProvider
     news: VaultSecretInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
     if (olds.ignoreChange || news.ignoreChange) {
-      console.log(`${news.name} will be ignored the update.`);
-      return { outs: { id, ...olds, ...news } };
+      console.log(`the ${news.name} will be ignored from the update.`);
+      return { outs: { id, ...olds, value: undefined } };
     }
 
+    //Create the new secret
     const rs = await this.create(news);
 
     //Delete the old Secret
@@ -69,24 +81,12 @@ class VaultSecretResourceProvider
   }
 
   async delete(id: string, props: VaultSecretOutputs): Promise<void> {
+    if (!props || !props.vaultName) {
+      console.error(`${this.name} - vaultName is undefined.`);
+      return;
+    }
     const client = getKeyVaultBase(props.vaultName);
     return client.deleteSecret(props.name).catch();
-  }
-
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async diff(
-    id: string,
-    previousOutput: VaultSecretOutputs,
-    news: VaultSecretInputs,
-  ): Promise<pulumi.dynamic.DiffResult> {
-    return {
-      deleteBeforeReplace: false,
-      changes:
-        previousOutput.name !== news.name ||
-        previousOutput.vaultName !== news.vaultName ||
-        previousOutput.value !== news.value ||
-        previousOutput.contentType !== news.contentType,
-    };
   }
 }
 
