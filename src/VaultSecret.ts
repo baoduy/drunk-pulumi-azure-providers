@@ -31,10 +31,7 @@ class VaultSecretResourceProvider
   async create(props: VaultSecretInputs): Promise<pulumi.dynamic.CreateResult> {
     const rs = {
       id: this.name,
-      outs: {
-        ...props,
-        value: undefined,
-      },
+      outs: props,
     };
 
     if (!props || !props.vaultName) {
@@ -67,7 +64,7 @@ class VaultSecretResourceProvider
   ): Promise<pulumi.dynamic.UpdateResult> {
     if (olds.ignoreChange || news.ignoreChange) {
       console.log(`the ${news.name} will be ignored from the update.`);
-      return { outs: { id, ...olds, value: undefined } };
+      return { outs: olds };
     }
 
     //Create the new secret
