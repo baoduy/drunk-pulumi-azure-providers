@@ -69,7 +69,6 @@ class VaultSecretResourceProvider
 
     //Create the new secret
     const rs = await this.create(news);
-
     //Delete the old Secret
     if (olds.name !== news.name || olds.vaultName !== news.vaultName)
       await this.delete(id, olds).catch();
