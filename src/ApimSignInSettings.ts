@@ -1,7 +1,8 @@
 /* eslint-disable  @typescript-eslint/no-unsafe-return */
 
-import * as pulumi from '@pulumi/pulumi';
-import { createAxios } from './Tools/Axios';
+import { ApiManagementClient } from "@azure/arm-apimanagement";
+import { DefaultAzureCredential } from "@azure/identity";
+import * as pulumi from "@pulumi/pulumi";
 
 import {
   BaseOptions,
@@ -9,11 +10,12 @@ import {
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from './BaseProvider';
+} from "./BaseProvider";
 
 interface ApimSignInSettingsInputs extends DefaultInputs {
   resourceGroupName: string;
   serviceName: string;
+  subscriptionId: string;
   enabled: boolean;
 }
 
@@ -26,52 +28,47 @@ class ApimSignInSettingsResourceProvider
 {
   constructor(private name: string) {}
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async diff(
-    id: string,
-    previousOutput: ApimSignInSettingsOutputs,
-    news: ApimSignInSettingsInputs
-  ): Promise<pulumi.dynamic.DiffResult> {
-    return {
-      deleteBeforeReplace:
-        previousOutput.resourceGroupName !== news.resourceGroupName ||
-        previousOutput.serviceName !== news.serviceName,
-      replaces: [],
-      changes:
-        previousOutput.enabled !== news.enabled ||
-        previousOutput.resourceGroupName !== news.resourceGroupName ||
-        previousOutput.serviceName !== news.serviceName,
-    };
-  }
+  async create(
+    props: ApimSignInSettingsInputs,
+  ): Promise<pulumi.dynamic.CreateResult> {
+    const client = new ApiManagementClient(
+      new DefaultAzureCredential(),
+      props.subscriptionId,
+    );
 
-  async create({
-    resourceGroupName,
-    serviceName,
-    enabled,
-  }: ApimSignInSettingsInputs): Promise<pulumi.dynamic.CreateResult> {
-    //TODO: Workaround for this issue https://github.com/pulumi/pulumi/issues/5294
-    const axios = createAxios();
-    const url = `/resourceGroups/${resourceGroupName}/providers/Microsoft.ApiManagement/service/${serviceName}/portalsettings/signin?api-version=2020-06-01-preview`;
-    const rs = await axios
-      .put(url, {
-        properties: {
-          enabled,
-        },
-      })
-      .then((rs) => rs.data);
+    await client.signInSettings.createOrUpdate(
+      props.resourceGroupName,
+      props.serviceName,
+      {
+        enabled: props.enabled,
+      },
+    );
 
     return {
       id: this.name,
-      outs: { ...rs, resourceGroupName, serviceName, enabled },
+      outs: props,
     };
   }
 
   async update(
     id: string,
     olds: ApimSignInSettingsOutputs,
-    news: ApimSignInSettingsInputs
+    news: ApimSignInSettingsInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
     return this.create(news);
+  }
+
+  async delete(id: string, props: ApimSignInSettingsOutputs): Promise<void> {
+    const client = new ApiManagementClient(
+      new DefaultAzureCredential(),
+      props.subscriptionId,
+    );
+
+    await client.signInSettings
+      .createOrUpdate(props.resourceGroupName, props.serviceName, {
+        enabled: true,
+      })
+      .catch();
   }
 }
 
@@ -84,13 +81,13 @@ export class ApimSignInSettingsResource extends BaseResource<
   constructor(
     name: string,
     args: BaseOptions<ApimSignInSettingsInputs>,
-    opts?: pulumi.CustomResourceOptions
+    opts?: pulumi.CustomResourceOptions,
   ) {
     super(
       new ApimSignInSettingsResourceProvider(name),
       `csp:ApimSignInSettings:${name}`,
       args,
-      opts
+      opts,
     );
     this.name = name;
   }
