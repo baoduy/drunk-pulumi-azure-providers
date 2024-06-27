@@ -1,5 +1,4 @@
 import * as pulumi from "@pulumi/pulumi";
-import { KeyVaultInfo } from "./types";
 import { getKeyVaultBase } from "./AzBase/KeyVaultBase";
 import {
   BaseOptions,
