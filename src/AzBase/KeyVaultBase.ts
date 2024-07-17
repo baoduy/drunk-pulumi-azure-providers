@@ -306,6 +306,7 @@ export class KeyVaultBase {
         lifetimeActions: [
           {
             daysBeforeExpiry: 30,
+            action: 'AutoRenew',
           },
         ],
         subjectAlternativeNames: {
