@@ -1,275 +1,377 @@
-import { SecretClient, SecretProperties } from "@azure/keyvault-secrets";
-import { DefaultAzureCredential } from "@azure/identity";
-import { KeyClient } from "@azure/keyvault-keys";
-import { getKeyVaultCache, KeyVaultCacheType } from "./KeyVaultCache";
+import { KeyProperties } from '@azure/arm-keyvault';
+import { SecretClient, SecretProperties } from '@azure/keyvault-secrets';
+import { DefaultAzureCredential } from '@azure/identity';
+import { KeyClient } from '@azure/keyvault-keys';
+import {
+  ArrayOneOrMore,
+  CertificateClient,
+  CertificateProperties,
+  KnownKeyUsageTypes,
+} from '@azure/keyvault-certificates';
+import { getKeyVaultCache, KeyVaultCacheType } from './KeyVaultCache';
 
 const isDryRun = Boolean(process.env.PULUMI_NODEJS_DRY_RUN);
 
-type ClientType = {
-  keyVaultName: string;
-  secretClient: SecretClient;
-  keyClient: KeyClient;
+export type CertArgs = {
+  subject: string;
+  dnsNames?: ArrayOneOrMore<string>;
+  serverAuth?: boolean;
+  validityInMonths?: number;
+  keySize?: 2048 | 3072 | 4096;
+  keyType?: 'EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM' | 'oct';
 };
 
-/** Get Secret and Hey Clients */
-function getClients(keyVaultName: string): ClientType {
-  if (!keyVaultName) throw new Error("getClients: keyVaultName is undefined.");
+export class KeyVaultBase {
+  private secretClient: SecretClient;
+  private keyClient: KeyClient;
+  private certClient: CertificateClient;
+  private cache: KeyVaultCacheType;
 
-  const url = `https://${keyVaultName}.vault.azure.net?api-version=7.0`;
-  const credential = new DefaultAzureCredential();
+  public constructor(private keyVaultName: string) {
+    const url = `https://${keyVaultName}.vault.azure.net?api-version=7.0`;
+    const credential = new DefaultAzureCredential();
 
-  const secretClient = new SecretClient(url, credential);
-  const keyClient = new KeyClient(url, credential);
-
-  return { keyVaultName, secretClient, keyClient };
-}
-
-/** Get Secret Versions*/
-async function getSecretVersions(
-  name: string,
-  version: string | undefined = undefined,
-  client: ClientType,
-) {
-  const rs = client.secretClient
-    .listPropertiesOfSecretVersions(name)
-    .byPage({ maxPageSize: 10 });
-
-  const versionsList = new Array<SecretProperties>();
-  for await (const s of rs) {
-    s.forEach((p) => versionsList.push(p));
+    this.secretClient = new SecretClient(url, credential);
+    this.keyClient = new KeyClient(url, credential);
+    this.certClient = new CertificateClient(url, credential);
+    this.cache = getKeyVaultCache(keyVaultName);
   }
 
-  //Filter for specific version only
-  if (version) return versionsList.filter((s) => s.version === version);
-  return versionsList;
-}
+  /** Get Secret Versions*/
+  public async getSecretVersions(
+    name: string,
+    version: string | undefined = undefined,
+  ) {
+    const rs = this.secretClient
+      .listPropertiesOfSecretVersions(name)
+      .byPage({ maxPageSize: 10 });
 
-/** Get Key Versions*/
-async function getKeyVersions(
-  name: string,
-  version: string | undefined = undefined,
-  client: ClientType,
-) {
-  const rs = client.keyClient
-    .listPropertiesOfKeyVersions(name)
-    .byPage({ maxPageSize: 10 });
+    const versionsList = new Array<SecretProperties>();
+    for await (const s of rs) {
+      s.forEach((p) => versionsList.push(p));
+    }
 
-  const versionsList = new Array<SecretProperties>();
-  for await (const s of rs) {
-    s.forEach((p) => versionsList.push(p));
+    //Filter for specific version only
+    if (version) return versionsList.filter((s) => s.version === version);
+    return versionsList;
   }
 
-  //Filter for specific version only
-  if (version) return versionsList.filter((s) => s.version === version);
-  return versionsList;
-}
+  /** Get Key Versions*/
+  public async getKeyVersions(
+    name: string,
+    version: string | undefined = undefined,
+  ) {
+    const rs = this.keyClient
+      .listPropertiesOfKeyVersions(name)
+      .byPage({ maxPageSize: 10 });
 
-/** Check whether Secret is existed or not*/
-async function checkSecretExist(
-  name: string,
-  version: string | undefined = undefined,
-  client: ClientType,
-) {
-  const versions = await getSecretVersions(name, version, client);
+    const versionsList = new Array<KeyProperties>();
+    for await (const s of rs) {
+      s.forEach((p) => versionsList.push(p));
+    }
 
-  if (versions.length > 0) {
-    console.log(`The secret '${name}' is existed.`);
-    return true;
+    //Filter for specific version only
+    if (version)
+      return versionsList.filter((s) => s.keyUriWithVersion?.endsWith(version));
+    return versionsList;
   }
 
-  console.log(`The secret '${name}' is NOT existed.`);
-  return false;
-}
+  /** Get Cert Versions*/
+  public async getCertVersions(
+    name: string,
+    version: string | undefined = undefined,
+  ) {
+    const rs = this.certClient
+      .listPropertiesOfCertificateVersions(name)
+      .byPage({ maxPageSize: 10 });
 
-/** Check whether Key is existed or not*/
-async function checkKeyExist(
-  name: string,
-  version: string | undefined = undefined,
-  client: ClientType,
-) {
-  const versions = (
-    await getKeyVersions(name, version, client).catch(() => undefined)
-  )?.filter((a) => a.enabled);
+    const versionsList = new Array<CertificateProperties>();
+    for await (const s of rs) {
+      s.forEach((p) => versionsList.push(p));
+    }
 
-  if (versions && versions.length > 0) {
-    console.log(`The key '${name}' is existed.`);
-    return true;
+    //Filter for specific version only
+    if (version) return versionsList.filter((s) => s.version === version);
+    return versionsList;
   }
 
-  console.log(`The key '${name}' is NOT existed.`);
-  return false;
-}
+  /** Check whether Secret is existed or not*/
+  public async checkSecretExist(
+    name: string,
+    version: string | undefined = undefined,
+  ) {
+    const versions = await this.getSecretVersions(name, version);
 
-/**Get deleted Secret*/
-async function getDeletedSecret(name: string, client: ClientType) {
-  return await client.secretClient
-    .getDeletedSecret(name)
-    .catch(() => undefined);
-}
+    if (versions.length > 0) {
+      console.log(`The secret '${name}' is existed.`);
+      return true;
+    }
 
-/**Get deleted Key*/
-async function getDeletedKey(name: string, client: ClientType) {
-  return await client.keyClient.getDeletedKey(name).catch(() => undefined);
-}
-
-/**Recover the deleted Secret*/
-async function recoverDeletedSecret(name: string, client: ClientType) {
-  if (isDryRun) return undefined;
-
-  const deleted = await getDeletedSecret(name, client);
-  //Recover deleted items
-  if (deleted) {
-    await (
-      await client.secretClient.beginRecoverDeletedSecret(deleted.name)
-    ).pollUntilDone();
-    return true;
+    console.log(`The secret '${name}' is NOT existed.`);
+    return false;
   }
-  return false;
-}
 
-/**Recover deleted Key*/
-async function recoverDeletedKey(name: string, client: ClientType) {
-  if (isDryRun) return undefined;
+  /** Check whether Key is existed or not*/
+  public async checkKeyExist(
+    name: string,
+    version: string | undefined = undefined,
+  ) {
+    const versions = (
+      await this.getKeyVersions(name, version).catch(() => undefined)
+    )?.filter((a) => a.attributes?.enabled);
 
-  const deleted = await getDeletedKey(name, client);
-  //Recover deleted items
-  if (deleted) {
-    await (
-      await client.keyClient.beginRecoverDeletedKey(deleted.name)
-    ).pollUntilDone();
-    return true;
+    if (versions && versions.length > 0) {
+      console.log(`The key '${name}' is existed.`);
+      return true;
+    }
+
+    console.log(`The key '${name}' is NOT existed.`);
+    return false;
   }
-  return false;
-}
 
-/** Create or update the Secret. This will recover the deleted automatically.*/
-async function setSecret(
-  name: string,
-  value: string,
-  contentType: string | undefined = undefined,
-  tags: { [p: string]: string } | undefined = undefined,
-  client: ClientType,
-) {
-  if (isDryRun) return undefined;
+  /** Check whether Cert is existed or not*/
+  public async checkCertExist(
+    name: string,
+    version: string | undefined = undefined,
+  ) {
+    const versions = (
+      await this.getCertVersions(name, version).catch(() => undefined)
+    )?.filter((a) => a.enabled);
 
-  //Try to recover the deleted secret
-  await recoverDeletedSecret(name, client);
-  //Set a new value to the secret
-  return await client.secretClient.setSecret(name, value, {
-    enabled: true,
-    contentType,
-    tags,
-  });
-}
+    if (versions && versions.length > 0) {
+      console.log(`The Cert '${name}' is existed.`);
+      return true;
+    }
 
-/** Get Rsa Key*/
-async function createRsaKey(
-  name: string,
-  tags: { [p: string]: string } | undefined = undefined,
-  client: ClientType,
-) {
-  if (isDryRun) return undefined;
+    console.log(`The Cert '${name}' is NOT existed.`);
+    return false;
+  }
 
-  await recoverDeletedKey(name, client);
-  const expiresOn = new Date(
-    new Date().setFullYear(new Date().getFullYear() + 3),
-  );
+  /**Get deleted Secret*/
+  public async getDeletedSecret(name: string) {
+    return await this.secretClient
+      .getDeletedSecret(name)
+      .catch(() => undefined);
+  }
 
-  return await client.keyClient.createRsaKey(name, {
-    enabled: true,
-    tags,
-    keySize: 2048,
-    keyOps: ["decrypt", "encrypt", "sign", "verify", "wrapKey", "unwrapKey"],
-    expiresOn,
-  });
-}
+  /**Get deleted Key*/
+  public async getDeletedKey(name: string) {
+    return await this.keyClient.getDeletedKey(name).catch(() => undefined);
+  }
 
-/** Get Secret*/
-async function getSecret(
-  name: string,
-  version: string | undefined = undefined,
-  client: ClientType,
-  cache: KeyVaultCacheType,
-) {
-  let result = cache.getSecret(name);
-  if (result) return result;
+  /**Get deleted Cert*/
+  public async getDeletedCert(name: string) {
+    return await this.certClient
+      .getDeletedCertificate(name)
+      .catch(() => undefined);
+  }
 
-  result = await client.secretClient
-    .getSecret(name, { version })
-    .catch((err) => {
-      console.error(`${client.keyVaultName}: ${err.message || err}`);
+  /**Recover the deleted Secret*/
+  public async recoverDeletedSecret(name: string) {
+    if (isDryRun) return undefined;
+
+    const deleted = await this.getDeletedSecret(name);
+    //Recover deleted items
+    if (deleted) {
+      await (
+        await this.secretClient.beginRecoverDeletedSecret(deleted.name)
+      ).pollUntilDone();
+      return true;
+    }
+    return false;
+  }
+
+  /**Recover deleted Key*/
+  public async recoverDeletedKey(name: string) {
+    if (isDryRun) return undefined;
+
+    const deleted = await this.getDeletedKey(name);
+    //Recover deleted items
+    if (deleted) {
+      await (
+        await this.keyClient.beginRecoverDeletedKey(deleted.name)
+      ).pollUntilDone();
+      return true;
+    }
+    return false;
+  }
+
+  /**Recover deleted Cert*/
+  public async recoverDeletedCert(name: string) {
+    if (isDryRun) return undefined;
+
+    const deleted = await this.getDeletedCert(name);
+    //Recover deleted items
+    if (deleted) {
+      await (
+        await this.certClient.beginRecoverDeletedCertificate(deleted.name)
+      ).pollUntilDone();
+      return true;
+    }
+    return false;
+  }
+
+  /** Create or update the Secret. This will recover the deleted automatically.*/
+  public async setSecret(
+    name: string,
+    value: string,
+    contentType: string | undefined = undefined,
+    tags: { [p: string]: string } | undefined = undefined,
+  ) {
+    if (isDryRun) return undefined;
+
+    //Try to recover the deleted secret
+    await this.recoverDeletedSecret(name);
+    //Set a new value to the secret
+    return await this.secretClient.setSecret(name, value, {
+      enabled: true,
+      contentType,
+      tags,
+    });
+  }
+
+  /** Create Rsa Key*/
+  public async createRsaKey(
+    name: string,
+    tags: { [p: string]: string } | undefined = undefined,
+  ) {
+    if (isDryRun) return undefined;
+
+    await this.recoverDeletedKey(name);
+    const expiresOn = new Date(
+      new Date().setFullYear(new Date().getFullYear() + 3),
+    );
+
+    return await this.keyClient.createRsaKey(name, {
+      enabled: true,
+      tags,
+      keySize: 2048,
+      keyOps: ['decrypt', 'encrypt', 'sign', 'verify', 'wrapKey', 'unwrapKey'],
+      expiresOn,
+    });
+  }
+
+  /** Create or update the Cert. This will recover the deleted automatically.*/
+  public async createSelfSignCert(
+    name: string,
+    arg: CertArgs,
+    tags: { [p: string]: string } | undefined = undefined,
+  ) {
+    if (isDryRun) return undefined;
+    //Try to recover the deleted secret
+    await this.recoverDeletedCert(name);
+    //Set a new value to the secret
+    return await this.certClient.beginCreateCertificate(
+      name,
+      {
+        enabled: true,
+        exportable: true,
+        keySize: 4096,
+        keyType: 'RSA',
+        reuseKey: true,
+        keyUsage: [
+          KnownKeyUsageTypes.KeyCertSign,
+          KnownKeyUsageTypes.KeyAgreement,
+          KnownKeyUsageTypes.CRLSign,
+          KnownKeyUsageTypes.KeyEncipherment,
+          KnownKeyUsageTypes.DataEncipherment,
+          KnownKeyUsageTypes.DigitalSignature,
+        ],
+        enhancedKeyUsage: arg.serverAuth
+          ? ['1.3.6.1.5.5.7.3.1']
+          : ['1.3.6.1.5.5.7.3.2'],
+        contentType: 'application/x-pkcs12',
+        //certificateType: 'Self',
+        issuerName: 'Self',
+        lifetimeActions: [
+          {
+            daysBeforeExpiry: 30,
+          },
+        ],
+        subjectAlternativeNames: {
+          dnsNames: arg.dnsNames ?? [arg.subject],
+        },
+        subject: `CN=${arg.subject}`,
+        validityInMonths: arg.validityInMonths,
+      },
+      {
+        enabled: true,
+        tags,
+      },
+    );
+  }
+
+  /** Get Secret*/
+  public async getSecret(
+    name: string,
+    version: string | undefined = undefined,
+  ) {
+    let result = this.cache.getSecret(name);
+    if (result) return result;
+
+    result = await this.secretClient
+      .getSecret(name, { version })
+      .catch((err) => {
+        console.error(`${this.keyVaultName}: ${err.message || err}`);
+        return undefined;
+      });
+
+    if (result) this.cache.setSecret(result);
+    return result;
+  }
+
+  /** Get Key*/
+  public async getKey(name: string, version: string | undefined = undefined) {
+    let result = this.cache.getKey(name);
+    if (result) return result;
+
+    result = await this.keyClient.getKey(name, { version }).catch((err) => {
+      console.error(`${this.keyVaultName}: ${err.message || err}`);
       return undefined;
     });
 
-  if (result) cache.setSecret(result);
-  return result;
+    if (result) this.cache.setKey(result);
+    return result;
+  }
+
+  /** Get or create Key */
+  public async getOrCreateKey(name: string, type: 'Rsa' = 'Rsa') {
+    if (await this.checkKeyExist(name, undefined))
+      return await this.getKey(name, undefined);
+    return await this.createRsaKey(name, undefined);
+  }
+
+  /** Get Cert*/
+  public async getCert(name: string) {
+    let result = this.cache.getCert(name);
+    if (result) return result;
+
+    result = await this.certClient.getCertificate(name).catch((err) => {
+      console.error(`${this.keyVaultName}: ${err.message || err}`);
+      return undefined;
+    });
+
+    if (result) this.cache.setCert(result);
+    return result;
+  }
+
+  /** Delete Secret */
+  public async deleteSecret(name: string) {
+    if (isDryRun) return undefined;
+    await this.secretClient.beginDeleteSecret(name).catch();
+  }
+
+  /** Delete Key */
+  public async deleteKey(name: string) {
+    if (isDryRun) return undefined;
+    await this.keyClient.beginDeleteKey(name).catch();
+  }
+
+  /** Delete Cert */
+  public async deleteCert(name: string) {
+    if (isDryRun) return undefined;
+    await this.certClient.beginDeleteCertificate(name).catch();
+  }
 }
 
-/** Get Key*/
-async function getKey(
-  name: string,
-  version: string | undefined = undefined,
-  client: ClientType,
-  cache: KeyVaultCacheType,
-) {
-  let result = cache.getKey(name);
-  if (result) return result;
-
-  result = await client.keyClient.getKey(name, { version }).catch((err) => {
-    console.error(`${client.keyVaultName}: ${err.message || err}`);
-    return undefined;
-  });
-
-  if (result) cache.setKey(result);
-  return result;
-}
-
-/** Get or create Key */
-async function getOrCreateKey(
-  name: string,
-  type: "Rsa" = "Rsa",
-  client: ClientType,
-  cache: KeyVaultCacheType,
-) {
-  if (await checkKeyExist(name, undefined, client))
-    return await getKey(name, undefined, client, cache);
-  return await createRsaKey(name, undefined, client);
-}
-
-/** Delete Secret */
-async function deleteSecret(name: string, client: ClientType) {
-  if (isDryRun) return undefined;
-  await client.secretClient.beginDeleteSecret(name).catch();
-}
-
-/** Delete Key */
-async function deleteKey(name: string, client: ClientType) {
-  if (isDryRun) return undefined;
-  await client.keyClient.beginDeleteKey(name).catch();
-}
-
-/** the KeyVaultBase swapper*/
-export function getKeyVaultBase(keyVaultName: string) {
-  const clients = getClients(keyVaultName);
-  const cache = getKeyVaultCache(keyVaultName);
-  return {
-    checkSecretExist: (name: string, version: string | undefined = undefined) =>
-      checkSecretExist(name, version, clients),
-    checkKeyExist: (name: string, version: string | undefined = undefined) =>
-      checkKeyExist(name, version, clients),
-    getSecret: (name: string, version: string | undefined = undefined) =>
-      getSecret(name, version, clients, cache),
-    getKey: (name: string, version: string | undefined = undefined) =>
-      getKey(name, version, clients, cache),
-    setSecret: (
-      name: string,
-      value: string,
-      contentType: string | undefined = undefined,
-      tags: { [p: string]: string } | undefined = undefined,
-    ) => setSecret(name, value, contentType, tags, clients),
-    getOrCreateKey: (name: string, type: "Rsa" = "Rsa") =>
-      getOrCreateKey(name, type, clients, cache),
-    deleteSecret: (name: string) => deleteSecret(name, clients),
-    deleteKey: (name: string) => deleteKey(name, clients),
-  };
-}
+export default (keyVaultName: string) => new KeyVaultBase(keyVaultName);

@@ -1,13 +1,13 @@
-import * as pulumi from "@pulumi/pulumi";
-import { getKeyVaultBase } from "./AzBase/KeyVaultBase";
+import * as pulumi from '@pulumi/pulumi';
+import getKeyVaultBase from './AzBase/KeyVaultBase';
 import {
   BaseOptions,
   BaseProvider,
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from "./BaseProvider";
-import * as console from "console";
+} from './BaseProvider';
+import * as console from 'console';
 
 interface VaultSecretInputs extends DefaultInputs {
   name: string;

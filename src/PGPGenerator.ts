@@ -10,7 +10,7 @@ import {
 } from './BaseProvider';
 
 import { KeyVaultInfo } from './types';
-import { getKeyVaultBase } from './AzBase/KeyVaultBase';
+import getKeyVaultBase from './AzBase/KeyVaultBase';
 
 export interface PGPProps {
   user: { name: string; email: string };
@@ -54,7 +54,7 @@ class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
   async diff(
     id: string,
     previousOutput: PGPOutputs,
-    news: PGPInputs
+    news: PGPInputs,
   ): Promise<pulumi.dynamic.DiffResult> {
     return {
       deleteBeforeReplace: false,
@@ -67,28 +67,20 @@ class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
 
   async create(inputs: PGPInputs): Promise<pulumi.dynamic.CreateResult> {
     const { publicKey, privateKey, revocationCertificate } = await generatePGP(
-      inputs.pgp
+      inputs.pgp,
     );
 
     //Create Key Vault items
     const client = getKeyVaultBase(inputs.vaultInfo.name);
 
-    await client.setSecret(
-      `${this.name}-publicKey`,
-      publicKey,
-      this.name
-    );
+    await client.setSecret(`${this.name}-publicKey`, publicKey, this.name);
 
-    await client.setSecret(
-      `${this.name}-privateKey`,
-      privateKey,
-      this.name
-    );
+    await client.setSecret(`${this.name}-privateKey`, privateKey, this.name);
 
     await client.setSecret(
       `${this.name}-revocationCertificate`,
       revocationCertificate,
-      this.name
+      this.name,
     );
 
     return {
@@ -145,7 +137,7 @@ export class PGPResource extends BaseResource<PGPInputs, PGPOutputs> {
   constructor(
     name: string,
     args: BaseOptions<PGPInputs>,
-    opts?: pulumi.CustomResourceOptions
+    opts?: pulumi.CustomResourceOptions,
   ) {
     super(new PGPResourceProvider(name), `csp:PGPs:${name}`, args, opts);
     this.name = name;

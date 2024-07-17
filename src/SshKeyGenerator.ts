@@ -1,5 +1,5 @@
-import * as forge from "node-forge";
-import * as pulumi from "@pulumi/pulumi";
+import * as forge from 'node-forge';
+import * as pulumi from '@pulumi/pulumi';
 
 import {
   BaseOptions,
@@ -7,32 +7,32 @@ import {
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from "./BaseProvider";
+} from './BaseProvider';
 
-import { generateKeyPair, RSAKeyPairOptions } from "crypto";
-import { getKeyVaultBase } from "./AzBase/KeyVaultBase";
-import { KeyVaultInfo } from "./types";
+import { generateKeyPair, RSAKeyPairOptions } from 'crypto';
+import getKeyVaultBase from './AzBase/KeyVaultBase';
+import { KeyVaultInfo } from './types';
 
-const generateKeys = (options: RSAKeyPairOptions<"pem", "pem">) =>
+const generateKeys = (options: RSAKeyPairOptions<'pem', 'pem'>) =>
   new Promise<{ publicKey: string; privateKey: string }>((resolve, reject) => {
     generateKeyPair(
-      "rsa",
+      'rsa',
       options,
       (err: Error | null, pK: string, prK: string) => {
         if (err) reject(err);
 
         const publicKey = forge.ssh.publicKeyToOpenSSH(
-          forge.pki.publicKeyFromPem(pK)
+          forge.pki.publicKeyFromPem(pK),
         );
         const privateKey = forge.ssh.privateKeyToOpenSSH(
           forge.pki.decryptRsaPrivateKey(
             prK,
-            options.privateKeyEncoding.passphrase
-          )
+            options.privateKeyEncoding.passphrase,
+          ),
         );
 
         resolve({ publicKey, privateKey });
-      }
+      },
     );
   });
 
@@ -57,7 +57,7 @@ class SshKeyResourceProvider
   async diff(
     id: string,
     previousOutput: SshKeyOutputs,
-    news: SshKeyInputs
+    news: SshKeyInputs,
   ): Promise<pulumi.dynamic.DiffResult> {
     return {
       deleteBeforeReplace: false,
@@ -72,13 +72,13 @@ class SshKeyResourceProvider
     const { publicKey, privateKey } = await generateKeys({
       modulusLength: 4096,
       publicKeyEncoding: {
-        type: "spki",
-        format: "pem",
+        type: 'spki',
+        format: 'pem',
       },
       privateKeyEncoding: {
-        type: "pkcs8",
-        format: "pem",
-        cipher: "aes-256-cbc",
+        type: 'pkcs8',
+        format: 'pem',
+        cipher: 'aes-256-cbc',
         passphrase: inputs.password,
       },
     });
@@ -89,13 +89,13 @@ class SshKeyResourceProvider
     await client.setSecret(
       inputs.publicKeyName ?? `${this.name}-publicKey`,
       publicKey,
-      this.name
+      this.name,
     );
 
     await client.setSecret(
       inputs.privateKeyName ?? `${this.name}-privateKey`,
       privateKey,
-      this.name
+      this.name,
     );
 
     return {
@@ -107,7 +107,7 @@ class SshKeyResourceProvider
   async update(
     id: string,
     olds: SshKeyOutputs,
-    news: SshKeyInputs
+    news: SshKeyInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
     return await this.create(news);
   }
@@ -128,7 +128,7 @@ export class SshKeyResource extends BaseResource<SshKeyInputs, SshKeyOutputs> {
   constructor(
     name: string,
     args: BaseOptions<SshKeyInputs>,
-    opts?: pulumi.CustomResourceOptions
+    opts?: pulumi.CustomResourceOptions,
   ) {
     super(new SshKeyResourceProvider(name), `csp:SshKeys:${name}`, args, opts);
     this.name = name;
