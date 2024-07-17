@@ -279,7 +279,7 @@ export class KeyVaultBase {
   public async createSelfSignCert(name: string, args: CertArgs) {
     if (isDryRun) return undefined;
     //Try to recover the deleted secret
-    await this.recoverDeletedCert(name);
+    //await this.recoverDeletedCert(name);
     //Set a new value to the secret
     return await this.certClient.beginCreateCertificate(
       name,
