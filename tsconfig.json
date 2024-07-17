@@ -21,6 +21,7 @@
     "src/AzBase/Internal.ts",
     "src/AzBase/KeyVaultBase.ts",
     "src/AzBase/KeyVaultCache.ts",
+    "src/AzBase/index.ts",
     "src/BaseProvider.ts",
     "src/CdnHttpsEnable.ts",
     "src/PGPGenerator.ts",

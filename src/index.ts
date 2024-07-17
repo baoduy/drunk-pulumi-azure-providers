@@ -12,3 +12,4 @@ export * from './VaultSecret';
 export * from './VaultCert';
 
 export * from './types';
+export * from './AzBase';
