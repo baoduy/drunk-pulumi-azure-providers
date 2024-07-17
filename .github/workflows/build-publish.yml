@@ -5,6 +5,8 @@ name: build-publish
 on:
   push:
     branches: [ "main" ]
+    #paths:
+    #- src/**
 
 env:
   Enable_Release: 'true'
@@ -51,7 +53,7 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org/'
 
-      - run: npm ci
+      - run: npm install --force
 
 #      - name: Test
 #        continue-on-error: true
