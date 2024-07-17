@@ -36,12 +36,9 @@ class VaultCertResourceProvider
     const client = getKeyVaultBase(props.vaultName);
 
     const n = props.name ?? this.name;
-    const ss = await client
-      .createSelfSignCert(n, props.cert)
-      .catch(console.error);
+    await client.createSelfSignCert(n, props.cert);
 
-    const cert = await ss!.pollUntilDone();
-    rs.id = cert.id ?? this.name;
+    rs.id = `https://${props.vaultName}/certificates/${n}`;
     return rs;
   }
 
