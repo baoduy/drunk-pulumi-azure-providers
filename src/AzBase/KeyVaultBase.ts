@@ -12,13 +12,30 @@ import { getKeyVaultCache, KeyVaultCacheType } from './KeyVaultCache';
 
 const isDryRun = Boolean(process.env.PULUMI_NODEJS_DRY_RUN);
 
+type KeySizes = 2048 | 3072 | 4096;
+type KeyTypes = 'EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM' | 'oct';
+type KeyOpsTypes =
+  | 'decrypt'
+  | 'encrypt'
+  | 'sign'
+  | 'verify'
+  | 'wrapKey'
+  | 'unwrapKey';
+
+export type KeyArgs = {
+  keySize?: KeySizes;
+  keyOps?: Array<KeyOpsTypes>;
+  tags?: { [p: string]: string };
+};
+
 export type CertArgs = {
   subject: string;
   dnsNames?: ArrayOneOrMore<string>;
   serverAuth?: boolean;
   validityInMonths?: number;
-  keySize?: 2048 | 3072 | 4096;
-  keyType?: 'EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM' | 'oct';
+  keySize?: KeySizes;
+  keyType?: KeyTypes;
+  tags?: { [p: string]: string };
 };
 
 export class KeyVaultBase {
@@ -233,7 +250,7 @@ export class KeyVaultBase {
   /** Create Rsa Key*/
   public async createRsaKey(
     name: string,
-    tags: { [p: string]: string } | undefined = undefined,
+    args: KeyArgs | undefined = undefined,
   ) {
     if (isDryRun) return undefined;
 
@@ -244,19 +261,22 @@ export class KeyVaultBase {
 
     return await this.keyClient.createRsaKey(name, {
       enabled: true,
-      tags,
-      keySize: 2048,
-      keyOps: ['decrypt', 'encrypt', 'sign', 'verify', 'wrapKey', 'unwrapKey'],
+      tags: args?.tags,
+      keySize: args?.keySize ?? 2048,
+      keyOps: args?.keyOps ?? [
+        'decrypt',
+        'encrypt',
+        'sign',
+        'verify',
+        'wrapKey',
+        'unwrapKey',
+      ],
       expiresOn,
     });
   }
 
   /** Create or update the Cert. This will recover the deleted automatically.*/
-  public async createSelfSignCert(
-    name: string,
-    arg: CertArgs,
-    tags: { [p: string]: string } | undefined = undefined,
-  ) {
+  public async createSelfSignCert(name: string, args: CertArgs) {
     if (isDryRun) return undefined;
     //Try to recover the deleted secret
     await this.recoverDeletedCert(name);
@@ -277,7 +297,7 @@ export class KeyVaultBase {
           KnownKeyUsageTypes.DataEncipherment,
           KnownKeyUsageTypes.DigitalSignature,
         ],
-        enhancedKeyUsage: arg.serverAuth
+        enhancedKeyUsage: args.serverAuth
           ? ['1.3.6.1.5.5.7.3.1']
           : ['1.3.6.1.5.5.7.3.2'],
         contentType: 'application/x-pkcs12',
@@ -289,14 +309,14 @@ export class KeyVaultBase {
           },
         ],
         subjectAlternativeNames: {
-          dnsNames: arg.dnsNames ?? [arg.subject],
+          dnsNames: args.dnsNames ?? [args.subject],
         },
-        subject: `CN=${arg.subject}`,
-        validityInMonths: arg.validityInMonths,
+        subject: `CN=${args.subject}`,
+        validityInMonths: args.validityInMonths,
       },
       {
         enabled: true,
-        tags,
+        tags: args.tags,
       },
     );
   }
@@ -335,10 +355,14 @@ export class KeyVaultBase {
   }
 
   /** Get or create Key */
-  public async getOrCreateKey(name: string, type: 'Rsa' = 'Rsa') {
+  public async getOrCreateKey(
+    name: string,
+    type: 'Rsa' = 'Rsa',
+    args: KeyArgs | undefined = undefined,
+  ) {
     if (await this.checkKeyExist(name, undefined))
       return await this.getKey(name, undefined);
-    return await this.createRsaKey(name, undefined);
+    return await this.createRsaKey(name, args);
   }
 
   /** Get Cert*/

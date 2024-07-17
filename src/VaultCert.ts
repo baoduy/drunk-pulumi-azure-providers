@@ -13,10 +13,6 @@ interface VaultCertInputs extends DefaultInputs {
   name: string;
   cert: CertArgs;
   vaultName: string;
-
-  tags?: {
-    [key: string]: string;
-  };
 }
 
 interface VaultCertOutputs extends VaultCertInputs, DefaultOutputs {}
@@ -41,7 +37,7 @@ class VaultCertResourceProvider
 
     const n = props.name ?? this.name;
     const ss = await client
-      .createSelfSignCert(n, props.cert, props.tags)
+      .createSelfSignCert(n, props.cert)
       .catch(console.error);
 
     const cert = await ss!.pollUntilDone();
