@@ -38,7 +38,7 @@ class VaultCertResourceProvider
     const n = props.name ?? this.name;
     await client.createSelfSignCert(n, props.cert);
 
-    rs.id = `https://${props.vaultName}/certificates/${n}`;
+    rs.id = `/${props.vaultName}/certificates/${n}`;
     return rs;
   }
 
