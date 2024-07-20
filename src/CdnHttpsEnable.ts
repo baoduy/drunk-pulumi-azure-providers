@@ -1,17 +1,17 @@
-import * as pulumi from "@pulumi/pulumi";
+import * as pulumi from '@pulumi/pulumi';
 import {
   BaseOptions,
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
   BaseProvider,
-} from "./BaseProvider";
+} from './BaseProvider';
 import {
   CdnManagedHttpsParameters,
   CdnManagementClient,
   UserManagedHttpsParameters,
-} from "@azure/arm-cdn";
-import { DefaultAzureCredential } from "@azure/identity";
+} from '@azure/arm-cdn';
+import { DefaultAzureCredential } from '@azure/identity';
 
 export interface CdnHttpsEnableInputs extends DefaultInputs {
   resourceGroupName: string;
@@ -47,29 +47,29 @@ class CdnHttpsEnableProvider
 
     const customDomainHttpsParameters = props.vaultSecretInfo
       ? ({
-          certificateSource: "AzureKeyVault",
+          certificateSource: 'AzureKeyVault',
           certificateSourceParameters: {
-            typeName: "KeyVaultCertificateSourceParameters",
-            "@odata.type":
-              "#Microsoft.Azure.Cdn.Models.KeyVaultCertificateSourceParameters",
-            deleteRule: "NoAction",
-            updateRule: "NoAction",
+            typeName: 'KeyVaultCertificateSourceParameters',
+            '@odata.type':
+              '#Microsoft.Azure.Cdn.Models.KeyVaultCertificateSourceParameters',
+            deleteRule: 'NoAction',
+            updateRule: 'NoAction',
             subscriptionId: props.subscriptionId,
             ...props.vaultSecretInfo,
           },
-          protocolType: "ServerNameIndication",
-          minimumTlsVersion: "TLS12",
+          protocolType: 'ServerNameIndication',
+          minimumTlsVersion: 'TLS12',
         } as UserManagedHttpsParameters)
       : ({
-          certificateSource: "Cdn",
+          certificateSource: 'Cdn',
           certificateSourceParameters: {
-            typeName: "CdnCertificateSourceParameters",
-            certificateType: "Dedicated",
-            "@odata.type":
-              "#Microsoft.Azure.Cdn.Models.CdnCertificateSourceParameters",
+            typeName: 'CdnCertificateSourceParameters',
+            certificateType: 'Dedicated',
+            '@odata.type':
+              '#Microsoft.Azure.Cdn.Models.CdnCertificateSourceParameters',
           },
-          protocolType: "ServerNameIndication",
-          minimumTlsVersion: "TLS12",
+          protocolType: 'ServerNameIndication',
+          minimumTlsVersion: 'TLS12',
         } as CdnManagedHttpsParameters);
 
     const rs = await client.customDomains.beginEnableCustomHttps(
@@ -86,6 +86,15 @@ class CdnHttpsEnableProvider
       id: `/subscriptions/${props.subscriptionId}/resourcegroups/${props.resourceGroupName}/providers/Microsoft.Cdn/profiles/${props.profileName}/endpoints/${props.endpointName}/customdomains/${props.customDomainName}`,
       outs: props,
     };
+  }
+
+  async update(
+    id: string,
+    olds: CdnHttpsEnableOutputs,
+    news: CdnHttpsEnableInputs,
+  ): Promise<pulumi.dynamic.UpdateResult> {
+    await this.create(news).catch(() => undefined);
+    return { outs: news };
   }
 }
 
