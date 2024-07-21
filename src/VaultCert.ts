@@ -24,7 +24,7 @@ class VaultCertResourceProvider
 
   async create(props: VaultCertInputs): Promise<pulumi.dynamic.CreateResult> {
     const rs = {
-      id: this.name,
+      id: `/${props.vaultName}/certificates/${props.name}`,
       outs: props,
     };
 
@@ -34,12 +34,17 @@ class VaultCertResourceProvider
     }
 
     const client = getKeyVaultBase(props.vaultName);
+    await client.createSelfSignCert(props.name, props.cert);
 
-    const n = props.name ?? this.name;
-    await client.createSelfSignCert(n, props.cert);
-
-    rs.id = `/${props.vaultName}/certificates/${n}`;
     return rs;
+  }
+
+  public async update(
+    id: string,
+    olds: VaultCertOutputs,
+    news: VaultCertInputs,
+  ): Promise<pulumi.dynamic.UpdateResult> {
+    return { outs: news };
   }
 
   async delete(id: string, props: VaultCertOutputs): Promise<void> {
