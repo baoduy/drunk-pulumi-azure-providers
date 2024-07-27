@@ -185,7 +185,7 @@ export class KeyVaultBase {
 
   /**Recover the deleted Secret*/
   public async recoverDeletedSecret(name: string) {
-    if (isDryRun) return undefined;
+    //if (isDryRun) return undefined;
 
     const deleted = await this.getDeletedSecret(name);
     //Recover deleted items
@@ -200,7 +200,7 @@ export class KeyVaultBase {
 
   /**Recover deleted Key*/
   public async recoverDeletedKey(name: string) {
-    if (isDryRun) return undefined;
+    //if (isDryRun) return undefined;
 
     const deleted = await this.getDeletedKey(name);
     //Recover deleted items
@@ -215,7 +215,7 @@ export class KeyVaultBase {
 
   /**Recover deleted Cert*/
   public async recoverDeletedCert(name: string) {
-    if (isDryRun) return undefined;
+    //if (isDryRun) return undefined;
 
     const deleted = await this.getDeletedCert(name);
     //Recover deleted items
@@ -235,7 +235,7 @@ export class KeyVaultBase {
     contentType: string | undefined = undefined,
     tags: { [p: string]: string } | undefined = undefined,
   ) {
-    if (isDryRun) return undefined;
+    //if (isDryRun) return undefined;
 
     //Try to recover the deleted secret
     await this.recoverDeletedSecret(name);
@@ -252,7 +252,7 @@ export class KeyVaultBase {
     name: string,
     args: KeyArgs | undefined = undefined,
   ) {
-    if (isDryRun) return undefined;
+    //if (isDryRun) return undefined;
 
     await this.recoverDeletedKey(name);
     const expiresOn = new Date(
@@ -277,7 +277,7 @@ export class KeyVaultBase {
 
   /** Create or update the Cert. This will recover the deleted automatically.*/
   public async createSelfSignCert(name: string, args: CertArgs) {
-    if (isDryRun) return undefined;
+    //if (isDryRun) return undefined;
     //Try to recover the deleted secret
     //await this.recoverDeletedCert(name);
     //Set a new value to the secret
