@@ -1,7 +1,6 @@
-import { KeyProperties } from '@azure/arm-keyvault';
 import { SecretClient, SecretProperties } from '@azure/keyvault-secrets';
 import { DefaultAzureCredential } from '@azure/identity';
-import { KeyClient } from '@azure/keyvault-keys';
+import { KeyClient, KeyProperties } from '@azure/keyvault-keys';
 import {
   ArrayOneOrMore,
   CertificateClient,
@@ -88,8 +87,7 @@ export class KeyVaultBase {
     }
 
     //Filter for specific version only
-    if (version)
-      return versionsList.filter((s) => s.keyUriWithVersion?.endsWith(version));
+    if (version) return versionsList.filter((s) => s.version === version);
     return versionsList;
   }
 
@@ -117,14 +115,16 @@ export class KeyVaultBase {
     name: string,
     version: string | undefined = undefined,
   ) {
-    const versions = await this.getSecretVersions(name, version);
+    const versions = await this.getSecretVersions(name, version)
+      .then((t) => t.filter((s) => s.enabled))
+      .catch(() => undefined);
 
-    if (versions.length > 0) {
-      console.log(`The secret '${name}' is existed.`);
+    if (versions && versions.length > 0) {
+      console.info(`The secret '${name}' is existed.`);
       return true;
     }
 
-    console.log(`The secret '${name}' is NOT existed.`);
+    console.warn(`The secret '${name}' is NOT existed.`);
     return false;
   }
 
@@ -133,16 +133,16 @@ export class KeyVaultBase {
     name: string,
     version: string | undefined = undefined,
   ) {
-    const versions = (
-      await this.getKeyVersions(name, version).catch(() => undefined)
-    )?.filter((a) => a.attributes?.enabled);
+    const items = await this.getKeyVersions(name, version)
+      .then((t) => t.filter((s) => s.enabled))
+      .catch(() => undefined);
 
-    if (versions && versions.length > 0) {
-      console.log(`The key '${name}' is existed.`);
+    if (items && items.length > 0) {
+      console.info(`The key '${name}' is existed.`);
       return true;
     }
 
-    console.log(`The key '${name}' is NOT existed.`);
+    console.warn(`The key '${name}' is NOT existed.`);
     return false;
   }
 
@@ -151,16 +151,16 @@ export class KeyVaultBase {
     name: string,
     version: string | undefined = undefined,
   ) {
-    const versions = (
-      await this.getCertVersions(name, version).catch(() => undefined)
-    )?.filter((a) => a.enabled);
+    const versions = await this.getCertVersions(name, version)
+      .then((t) => t.filter((s) => s.enabled))
+      .catch(() => undefined);
 
     if (versions && versions.length > 0) {
-      console.log(`The Cert '${name}' is existed.`);
+      console.info(`The Cert '${name}' is existed.`);
       return true;
     }
 
-    console.log(`The Cert '${name}' is NOT existed.`);
+    console.warn(`The Cert '${name}' is NOT existed.`);
     return false;
   }
 
