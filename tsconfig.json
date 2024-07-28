@@ -35,11 +35,9 @@
     "src/index.ts",
     "src/types.ts"
   ],
-  "include": [
-    "**/*.ts"
-  ],
   "exclude": [
     "node_modules",
+    "pulumi-test",
     "z_tests",
     ".out-bin",
     ".tools",

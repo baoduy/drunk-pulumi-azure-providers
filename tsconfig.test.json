@@ -11,12 +11,12 @@
     "esm": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.d.ts",
-    "z_tests/**/*.ts"
+    "src/*.ts",
+    "src/*.d.ts",
   ],
   "exclude": [
     "node_modules",
+    "pulumi-test",
     ".out-bin",
     ".tools",
   ]
