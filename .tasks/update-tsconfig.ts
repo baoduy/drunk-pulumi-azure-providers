@@ -5,6 +5,7 @@ const tsconfigPath: string = './tsconfig.json';
 const srcFolderPath: string = './'; // Adjust 'src' if your TS files are in a different directory
 const excludeFolders: string[] = [
   'node_modules',
+  'pulumi-test',
   '.out-bin',
   'z_tests',
   '.tasks',
@@ -51,6 +52,6 @@ fs.readFile(tsconfigPath, 'utf8', (err, data) => {
         return;
       }
       console.log('tsconfig.json has been updated with TypeScript files.');
-    }
+    },
   );
 });
