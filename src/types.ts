@@ -1,5 +1,11 @@
 import { Input } from '@pulumi/pulumi';
 
+export type ResourceArgs = {
+  subscriptionId: string;
+  resourceGroupName: string;
+  resourceName: string;
+};
+
 export interface ResourceGroupInfo {
   resourceGroupName: string;
   location?: Input<string>;
@@ -12,11 +18,11 @@ export interface KeyVaultInfo {
 }
 
 //Requests
-export interface NetworkRouteRequest {
-  id: string;
-  location: string;
-  properties: NetworkRouteRequestProperties;
-}
+// export interface NetworkRouteRequest {
+//   id: string;
+//   location: string;
+//   properties: NetworkRouteRequestProperties;
+// }
 
 export interface NetworkRouteRequestProperties {
   disableBgpRoutePropagation: boolean;
@@ -35,14 +41,14 @@ export interface RouteRequestProperties {
 }
 
 //Results
-export interface NetworkRouteResult {
-  name: string;
-  id: string;
-  etag: string;
-  type: string;
-  location: string;
-  properties: NetworkRouteProperties;
-}
+// export interface NetworkRouteResult {
+//   name: string;
+//   id: string;
+//   etag: string;
+//   type: string;
+//   location: string;
+//   properties: NetworkRouteProperties;
+// }
 
 export interface NetworkRouteProperties {
   provisioningState: string;
