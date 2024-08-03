@@ -1,8 +1,8 @@
 /* eslint-disable  @typescript-eslint/no-unsafe-return */
 
-import { ApiManagementClient } from "@azure/arm-apimanagement";
-import { DefaultAzureCredential } from "@azure/identity";
-import * as pulumi from "@pulumi/pulumi";
+import { ApiManagementClient } from '@azure/arm-apimanagement';
+import { DefaultAzureCredential } from '@azure/identity';
+import * as pulumi from '@pulumi/pulumi';
 
 import {
   BaseOptions,
@@ -10,12 +10,13 @@ import {
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from "./BaseProvider";
+} from './BaseProvider';
+import { ResourceArgs } from './types';
 
-interface ApimSignInSettingsInputs extends DefaultInputs {
-  resourceGroupName: string;
+interface ApimSignInSettingsInputs
+  extends Omit<ResourceArgs, 'resourceName'>,
+    DefaultInputs {
   serviceName: string;
-  subscriptionId: string;
   enabled: boolean;
 }
 

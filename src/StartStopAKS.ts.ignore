@@ -1,5 +1,5 @@
-import * as pulumi from "@pulumi/pulumi";
-import { createAxios } from "./Tools/Axios";
+import * as pulumi from '@pulumi/pulumi';
+import { createGot } from './Tools/Got';
 
 import {
   BaseOptions,
@@ -7,9 +7,9 @@ import {
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from "./BaseProvider";
-import * as console from "console";
-import { AxiosError } from "axios";
+} from './BaseProvider';
+import * as console from 'console';
+import { AxiosError } from 'axios';
 
 interface StartStopAKSInputs extends DefaultInputs {
   resourceGroupName: string;
@@ -38,9 +38,9 @@ const getAksStatus = async ({
   resourceGroupName,
   resourceName,
 }: StartStopAKSInputs) => {
-  const axios = createAxios();
+  const axios = createGot();
   const url = `/resourceGroups/${resourceGroupName}/providers/Microsoft.ContainerService/managedClusters/${resourceName}?api-version=2021-05-01`;
-  return await axios.get<AksResult>(url).then((rs) => rs.data);
+  return await axios.get(url).then(s=>s.);
 };
 
 const startStopAKS = async ({
@@ -48,12 +48,12 @@ const startStopAKS = async ({
   resourceName,
   start,
 }: StartStopAKSInputs & { start?: boolean }) => {
-  const axios = createAxios();
+  const axios = createGot();
   //POST https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ContainerService/managedClusters/{resourceName}/start?api-version=2023-02-01
   //POST https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ContainerService/managedClusters/{resourceName}/stop?api-version=2023-02-01
 
   const url = `/resourceGroups/${resourceGroupName}/providers/Microsoft.ContainerService/managedClusters/${resourceName}/${
-    start ? "start" : "stop"
+    start ? 'start' : 'stop'
   }?api-version=2023-02-01`;
   //console.log('StartStopAKS', url);StartStopAKS.ts
 
@@ -61,7 +61,7 @@ const startStopAKS = async ({
     .post(url)
     //.then((rs) => rs.data)
     .catch((err: AxiosError) => {
-      console.log("StartStopAKS", err.response?.data || err);
+      console.log('StartStopAKS', err.response?.data || err);
       throw err;
     });
 };
@@ -81,7 +81,7 @@ class StartStopAKSResourceProvider
     return {
       deleteBeforeReplace: false,
       replaces: [],
-      changes: rs.properties.powerState.code !== "Stopped",
+      changes: rs.properties.powerState.code !== 'Stopped',
     };
   }
 

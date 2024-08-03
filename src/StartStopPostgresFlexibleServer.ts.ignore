@@ -1,13 +1,13 @@
-import * as pulumi from "@pulumi/pulumi";
-import { createAxios } from "./Tools/Axios";
+import * as pulumi from '@pulumi/pulumi';
+import { createAxios } from './Tools/Got';
 import {
   BaseOptions,
   BaseProvider,
   BaseResource,
   DefaultInputs,
   DefaultOutputs,
-} from "./BaseProvider";
-import { AxiosError } from "axios";
+} from './BaseProvider';
+import { AxiosError } from 'axios';
 
 interface StartStopPostgresFlexibleServerInputs extends DefaultInputs {
   resourceGroupName: string;
@@ -26,14 +26,14 @@ const StartStopPostgresFlexibleServer = async ({
   const axios = createAxios();
 
   const url = `/resourceGroups/${resourceGroupName}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${resourceName}/${
-    start ? "start" : "stop"
+    start ? 'start' : 'stop'
   }?api-version=2022-12-01`;
 
   return await axios
     .post(url)
     //.then((rs) => rs.data)
     .catch((err: AxiosError) => {
-      console.log("StartStopPostgresFlexibleServer", err.response?.data || err);
+      console.log('StartStopPostgresFlexibleServer', err.response?.data || err);
       throw err;
     });
 };
