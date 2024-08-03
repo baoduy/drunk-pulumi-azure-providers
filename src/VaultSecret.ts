@@ -45,7 +45,7 @@ class VaultSecretResourceProvider
       .setSecret(n, props.value, props.contentType, props.tags)
       .catch(console.error);
 
-    rs.id = ss!.properties.id ?? this.name;
+    rs.id = ss?.properties.id ?? this.name;
     return rs;
   }
 
