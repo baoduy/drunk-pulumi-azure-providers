@@ -1,46 +1,55 @@
 import { SqlManagementClient } from '@azure/arm-sql';
 import { DefaultAzureCredential } from '@azure/identity';
-import { ResourceArgs } from '../types';
+import { ResourceArgs, ResourceInfo } from '../types';
+import { getResourceInfoFromId } from './Helpers';
 
 export class SqlServer {
   private _client: SqlManagementClient;
-  constructor(private args: ResourceArgs) {
+  constructor(private subscriptionId: string) {
     this._client = new SqlManagementClient(
       new DefaultAzureCredential(),
-      args.subscriptionId,
+      subscriptionId,
     );
   }
 
-  public pauseDb(dbName: string) {
+  public async search(filter: string | undefined = undefined) {
+    const list = new Array<ResourceInfo>();
+    for await (const aks of this._client.servers.list().byPage()) {
+      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
+    }
+    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+  }
+
+  public pauseDb(sqlInfo: ResourceArgs, dbName: string) {
     return this._client.databases.beginPause(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      sqlInfo.resourceGroupName,
+      sqlInfo.resourceName,
       dbName,
     );
   }
-  public async pauseAllDbs() {
+  public async pauseAllDbs(sqlInfo: ResourceArgs) {
     const dbs = this._client.databases
-      .listByServer(this.args.resourceGroupName, this.args.resourceName)
+      .listByServer(sqlInfo.resourceGroupName, sqlInfo.resourceName)
       .byPage({ maxPageSize: 5 });
 
     for await (const db of dbs) {
-      await Promise.all(db.map((d) => this.pauseDb(d.name!)));
+      await Promise.all(db.map((d) => this.pauseDb(sqlInfo, d.name!)));
     }
   }
-  public resumeDb(dbName: string) {
+  public resumeDb(sqlInfo: ResourceArgs, dbName: string) {
     return this._client.databases.beginResume(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      sqlInfo.resourceGroupName,
+      sqlInfo.resourceName,
       dbName,
     );
   }
-  public async resumeAllDbs() {
+  public async resumeAllDbs(sqlInfo: ResourceArgs) {
     const dbs = this._client.databases
-      .listByServer(this.args.resourceGroupName, this.args.resourceName)
+      .listByServer(sqlInfo.resourceGroupName, sqlInfo.resourceName)
       .byPage({ maxPageSize: 5 });
 
     for await (const db of dbs) {
-      await Promise.all(db.map((d) => this.resumeDb(d.name!)));
+      await Promise.all(db.map((d) => this.resumeDb(sqlInfo, d.name!)));
     }
   }
 }

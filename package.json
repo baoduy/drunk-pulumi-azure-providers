@@ -60,6 +60,7 @@
     "@azure/arm-containerservice": "^21.0.0",
     "@azure/arm-keyvault": "^3.1.0",
     "@azure/arm-mysql-flexible": "^3.1.0",
+    "@azure/arm-network": "^33.3.0",
     "@azure/arm-postgresql-flexible": "^7.1.0",
     "@azure/arm-sql": "^10.0.0",
     "@azure/identity": "^4.4.1",

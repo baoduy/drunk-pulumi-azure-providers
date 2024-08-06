@@ -17,6 +17,7 @@ interface ApimSignInSettingsInputs
   extends Omit<ResourceArgs, 'resourceName'>,
     DefaultInputs {
   serviceName: string;
+  subscriptionId: string;
   enabled: boolean;
 }
 

@@ -1,35 +1,43 @@
 import { ComputeManagementClient } from '@azure/arm-compute';
 import { DefaultAzureCredential } from '@azure/identity';
-import { ResourceArgs } from '../types';
+import { ResourceArgs, ResourceInfo } from '../types';
+import { getResourceInfoFromId } from './Helpers';
 
 /** Virtual Machine*/
 export class VM {
   private _client: ComputeManagementClient;
-  constructor(private args: ResourceArgs) {
+  constructor(private subscriptionId: string) {
     this._client = new ComputeManagementClient(
       new DefaultAzureCredential(),
-      args.subscriptionId,
+      subscriptionId,
     );
   }
+  public async search(filter: string | undefined = undefined) {
+    const list = new Array<ResourceInfo>();
+    for await (const aks of this._client.virtualMachines.listAll().byPage()) {
+      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
+    }
+    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+  }
 
-  public stop() {
+  public stop(args: ResourceArgs) {
     return this._client.virtualMachines.beginDeallocate(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      args.resourceGroupName,
+      args.resourceName,
     );
   }
 
-  public start() {
+  public start(args: ResourceArgs) {
     return this._client.virtualMachines.beginStart(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      args.resourceGroupName,
+      args.resourceName,
     );
   }
 
-  public restart() {
+  public restart(args: ResourceArgs) {
     return this._client.virtualMachines.beginRestart(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      args.resourceGroupName,
+      args.resourceName,
     );
   }
 }
@@ -37,31 +45,41 @@ export class VM {
 /** Virtual Scale Set*/
 export class VMS {
   private _client: ComputeManagementClient;
-  constructor(private args: ResourceArgs) {
+  constructor(private subscriptionId: string) {
     this._client = new ComputeManagementClient(
       new DefaultAzureCredential(),
-      args.subscriptionId,
+      subscriptionId,
     );
   }
 
-  public stop() {
+  public async search(filter: string | undefined = undefined) {
+    const list = new Array<ResourceInfo>();
+    for await (const aks of this._client.virtualMachineScaleSets
+      .listAll()
+      .byPage()) {
+      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
+    }
+    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+  }
+
+  public stop(args: ResourceArgs) {
     return this._client.virtualMachineScaleSets.beginDeallocate(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      args.resourceGroupName,
+      args.resourceName,
     );
   }
 
-  public start() {
+  public start(args: ResourceArgs) {
     return this._client.virtualMachineScaleSets.beginStart(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      args.resourceGroupName,
+      args.resourceName,
     );
   }
 
-  public restart() {
+  public restart(args: ResourceArgs) {
     return this._client.virtualMachineScaleSets.beginRestart(
-      this.args.resourceGroupName,
-      this.args.resourceName,
+      args.resourceGroupName,
+      args.resourceName,
     );
   }
 }
