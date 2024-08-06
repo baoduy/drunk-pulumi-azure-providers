@@ -16,6 +16,7 @@ import { ResourceArgs } from './types';
 interface ApimSignUpSettingsInputs
   extends Omit<ResourceArgs, 'resourceName'>,
     DefaultInputs {
+  subscriptionId: string;
   serviceName: string;
   enabled: boolean;
   termsOfService: {

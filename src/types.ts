@@ -1,11 +1,13 @@
 import { Input } from '@pulumi/pulumi';
 
 export type ResourceArgs = {
-  subscriptionId: string;
   resourceGroupName: string;
   resourceName: string;
 };
-
+export type ResourceInfo = ResourceArgs & {
+  id: string;
+  subscriptionId: string;
+};
 export interface ResourceGroupInfo {
   resourceGroupName: string;
   location?: Input<string>;
