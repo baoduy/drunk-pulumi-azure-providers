@@ -1,4 +1,4 @@
 {
   "upgrade": true,
-  "reject": ["mocha"]
+  "reject": ["@openpgp/web-stream-tools","mocha"]
 }

@@ -20,6 +20,7 @@
     "src/ApimSignUpSettings.ts",
     "src/AzBase/Aks.ts",
     "src/AzBase/Compute.ts",
+    "src/AzBase/Helpers.ts",
     "src/AzBase/KeyVaultBase.ts",
     "src/AzBase/KeyVaultCache.ts",
     "src/AzBase/MySqlFlexible.ts",
