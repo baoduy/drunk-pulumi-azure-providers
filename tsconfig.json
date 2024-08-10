@@ -32,6 +32,7 @@
     "src/PGPGenerator.ts",
     "src/SshKeyGenerator.ts",
     "src/VaultCert.ts",
+    "src/VaultKey.ts",
     "src/VaultNetwork.ts",
     "src/VaultSecret.ts",
     "src/index.ts",

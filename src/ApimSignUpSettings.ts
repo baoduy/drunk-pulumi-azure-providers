@@ -1,21 +1,11 @@
 /* eslint-disable  @typescript-eslint/no-unsafe-return */
-
 import { ApiManagementClient } from '@azure/arm-apimanagement';
 import { DefaultAzureCredential } from '@azure/identity';
 import * as pulumi from '@pulumi/pulumi';
-
-import {
-  BaseOptions,
-  BaseProvider,
-  BaseResource,
-  DefaultInputs,
-  DefaultOutputs,
-} from './BaseProvider';
+import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { ResourceArgs } from './types';
 
-interface ApimSignUpSettingsInputs
-  extends Omit<ResourceArgs, 'resourceName'>,
-    DefaultInputs {
+interface ApimSignUpSettingsInputs extends Omit<ResourceArgs, 'resourceName'> {
   subscriptionId: string;
   serviceName: string;
   enabled: boolean;
@@ -26,9 +16,7 @@ interface ApimSignUpSettingsInputs
   };
 }
 
-interface ApimSignUpSettingsOutputs
-  extends ApimSignUpSettingsInputs,
-    DefaultOutputs {}
+interface ApimSignUpSettingsOutputs extends ApimSignUpSettingsInputs {}
 
 class ApimSignUpSettingsResourceProvider
   implements BaseProvider<ApimSignUpSettingsInputs, ApimSignUpSettingsOutputs>

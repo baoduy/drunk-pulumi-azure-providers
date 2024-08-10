@@ -286,8 +286,8 @@ export class KeyVaultBase {
       {
         enabled: true,
         exportable: true,
-        keySize: 4096,
-        keyType: 'RSA',
+        keySize: args.keySize ?? 4096,
+        keyType: args.keyType ?? 'RSA',
         reuseKey: true,
         keyUsage: [
           KnownKeyUsageTypes.KeyCertSign,

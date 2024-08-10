@@ -1,15 +1,10 @@
 import * as pulumi from '@pulumi/pulumi';
 import getKeyVaultBase from './AzBase/KeyVaultBase';
-import {
-  BaseOptions,
-  BaseProvider,
-  BaseResource,
-  DefaultInputs,
-  DefaultOutputs,
-} from './BaseProvider';
-import * as console from 'console';
+import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
+import { helpers } from './AzBase';
+import { KeyVaultSecret } from '@azure/keyvault-secrets';
 
-interface VaultSecretInputs extends DefaultInputs {
+interface VaultSecretInputs {
   name: string;
   value: string;
   vaultName: string;
@@ -20,40 +15,47 @@ interface VaultSecretInputs extends DefaultInputs {
   };
 }
 
-interface VaultSecretOutputs extends VaultSecretInputs, DefaultOutputs {}
+interface VaultSecretOutputs extends Omit<VaultSecretInputs, 'value'> {
+  version: string;
+  vaultUrl: string;
+}
 
 class VaultSecretResourceProvider
   implements BaseProvider<VaultSecretInputs, VaultSecretOutputs>
 {
   constructor(private name: string) {}
 
-  async create(props: VaultSecretInputs): Promise<pulumi.dynamic.CreateResult> {
-    const rs = {
-      id: this.name,
-      outs: props,
-    };
-
-    if (!props || !props.vaultName) {
-      console.error(`${this.name} - vaultName is undefined.`);
-      return rs;
-    }
-
+  async create(
+    props: VaultSecretInputs,
+  ): Promise<pulumi.dynamic.CreateResult<VaultSecretOutputs>> {
     const client = getKeyVaultBase(props.vaultName);
 
-    const n = props.name ?? this.name;
-    const ss = await client
-      .setSecret(n, props.value, props.contentType, props.tags)
-      .catch(console.error);
+    let ss: KeyVaultSecret | undefined = await client.setSecret(
+      props.name,
+      props.value,
+      props.contentType,
+      props.tags,
+    );
 
-    rs.id = ss?.properties.id ?? this.name;
-    return rs;
+    if (!ss) {
+      ss = await helpers.waitAndRetry(() => client.getSecret(props.name));
+    }
+
+    return {
+      id: ss?.properties.id!,
+      outs: {
+        ...props,
+        version: ss?.properties.version!,
+        vaultUrl: ss?.properties.vaultUrl!,
+      },
+    };
   }
 
   async update(
     id: string,
     olds: VaultSecretOutputs,
     news: VaultSecretInputs,
-  ): Promise<pulumi.dynamic.UpdateResult> {
+  ): Promise<pulumi.dynamic.UpdateResult<VaultSecretOutputs>> {
     if (olds.ignoreChange || news.ignoreChange) {
       console.log(`the ${news.name} will be ignored from the update.`);
       return { outs: olds };
@@ -68,13 +70,13 @@ class VaultSecretResourceProvider
     return rs;
   }
 
-  async delete(id: string, props: VaultSecretOutputs): Promise<void> {
+  async delete(id: string, props: VaultSecretOutputs) {
     if (!props || !props.vaultName) {
       console.error(`${this.name} - vaultName is undefined.`);
       return;
     }
     const client = getKeyVaultBase(props.vaultName);
-    return client.deleteSecret(props.name).catch();
+    return await client.deleteSecret(props.name).catch();
   }
 }
 
@@ -82,19 +84,30 @@ export class VaultSecretResource extends BaseResource<
   VaultSecretInputs,
   VaultSecretOutputs
 > {
-  public readonly name: string;
+  declare readonly name: pulumi.Output<string>;
+  declare readonly vaultName: pulumi.Output<string>;
+  declare readonly vaultUrl: pulumi.Output<string>;
+  declare readonly version: pulumi.Output<string>;
 
   constructor(
     name: string,
     args: BaseOptions<VaultSecretInputs>,
     opts?: pulumi.CustomResourceOptions,
   ) {
+    const innerOpts = pulumi.mergeOptions(opts, {
+      additionalSecretOutputs: ['value'],
+    });
+    const innerInputs = {
+      vaultUrl: undefined,
+      version: undefined,
+      ...args,
+      value: pulumi.secret(args.value),
+    };
     super(
       new VaultSecretResourceProvider(name),
       `csp:VaultSecrets:${name}`,
-      args,
-      opts,
+      innerInputs,
+      innerOpts,
     );
-    this.name = name;
   }
 }

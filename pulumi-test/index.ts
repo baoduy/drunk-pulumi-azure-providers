@@ -1,10 +1,13 @@
-import { Aks, SqlServer, VM, VMS } from '@drunk-pulumi/azure-providers/AzBase';
 import * as pulumi from '@pulumi/pulumi';
+import { VaultKeyResource } from '@drunk-pulumi/azure-providers';
 
 const rs = (async () => {
-  console.log(
-    await new SqlServer('63a31b41-eb5d-4160-9fc9-d30fc00286c9').search(),
-  );
+  const item = new VaultKeyResource('devdrunkcodingstg-encrypt-key', {
+    name: 'devdrunkcodingstg-encrypt-key',
+    key: { keySize: 4096, keyOps: ['wrapKey'] },
+    vaultName: 'global-drunkcoding-vlt',
+  });
+  return item;
 })();
 
 export default pulumi.output(rs);
