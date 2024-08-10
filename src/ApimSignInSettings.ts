@@ -4,26 +4,16 @@ import { ApiManagementClient } from '@azure/arm-apimanagement';
 import { DefaultAzureCredential } from '@azure/identity';
 import * as pulumi from '@pulumi/pulumi';
 
-import {
-  BaseOptions,
-  BaseProvider,
-  BaseResource,
-  DefaultInputs,
-  DefaultOutputs,
-} from './BaseProvider';
+import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { ResourceArgs } from './types';
 
-interface ApimSignInSettingsInputs
-  extends Omit<ResourceArgs, 'resourceName'>,
-    DefaultInputs {
+interface ApimSignInSettingsInputs extends Omit<ResourceArgs, 'resourceName'> {
   serviceName: string;
   subscriptionId: string;
   enabled: boolean;
 }
 
-interface ApimSignInSettingsOutputs
-  extends ApimSignInSettingsInputs,
-    DefaultOutputs {}
+interface ApimSignInSettingsOutputs extends ApimSignInSettingsInputs {}
 
 class ApimSignInSettingsResourceProvider
   implements BaseProvider<ApimSignInSettingsInputs, ApimSignInSettingsOutputs>

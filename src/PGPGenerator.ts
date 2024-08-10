@@ -1,19 +1,11 @@
 import * as pulumi from '@pulumi/pulumi';
 import { generateKey, SerializedKeyPair } from 'openpgp';
-
-import {
-  BaseOptions,
-  BaseProvider,
-  BaseResource,
-  DefaultInputs,
-  DefaultOutputs,
-} from './BaseProvider';
-
-import { KeyVaultInfo } from './types';
+import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import getKeyVaultBase from './AzBase/KeyVaultBase';
 
+type UserInfo = { name: string; email: string };
 export interface PGPProps {
-  user: { name: string; email: string };
+  user: UserInfo;
   passphrase?: string;
   type?: 'ecc' | 'rsa';
   validDays?: number;
@@ -35,16 +27,19 @@ const generatePGP = ({ user, passphrase, type, validDays }: PGPProps) => {
   });
 };
 
-interface PGPInputs extends DefaultInputs {
-  pgp: PGPProps;
-  vaultInfo: KeyVaultInfo;
+interface PGPInputs extends PGPProps {
+  vaultName: string;
 }
 
-interface PGPOutputs
-  extends PGPInputs,
-    DefaultOutputs,
-    SerializedKeyPair<string> {
-  revocationCertificate: string;
+type SecretNames = {
+  publicKeyName: string;
+  privateKeyName: string;
+  revocationCertificateName: string;
+};
+
+interface PGPOutputs extends PGPInputs {
+  publicKey: string;
+  vaultSecretNames: SecretNames;
 }
 
 class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
@@ -59,87 +54,88 @@ class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
     return {
       deleteBeforeReplace: false,
       changes:
-        previousOutput.pgp.passphrase !== news.pgp.passphrase ||
-        previousOutput.pgp.validDays !== news.pgp.validDays ||
-        previousOutput.pgp.type !== news.pgp.type,
+        previousOutput.passphrase !== news.passphrase ||
+        previousOutput.validDays !== news.validDays ||
+        previousOutput.type !== news.type,
     };
   }
 
-  async create(inputs: PGPInputs): Promise<pulumi.dynamic.CreateResult> {
-    const { publicKey, privateKey, revocationCertificate } = await generatePGP(
-      inputs.pgp,
-    );
+  async create(
+    inputs: PGPInputs,
+  ): Promise<pulumi.dynamic.CreateResult<PGPOutputs>> {
+    const { publicKey, privateKey, revocationCertificate } =
+      await generatePGP(inputs);
+
+    const publicKeyName = `${this.name}-publicKey`;
+    const privateKeyName = `${this.name}-privateKey`;
+    const revocationCertificateName = `${this.name}-revocationCertificate`;
 
     //Create Key Vault items
-    const client = getKeyVaultBase(inputs.vaultInfo.name);
-
-    await client.setSecret(`${this.name}-publicKey`, publicKey, this.name);
-
-    await client.setSecret(`${this.name}-privateKey`, privateKey, this.name);
-
+    const client = getKeyVaultBase(inputs.vaultName);
+    await client.setSecret(publicKeyName, publicKey, this.name);
+    await client.setSecret(privateKeyName, privateKey, this.name);
     await client.setSecret(
-      `${this.name}-revocationCertificate`,
+      revocationCertificateName,
       revocationCertificate,
       this.name,
     );
 
     return {
       id: this.name,
-      outs: inputs,
+      outs: {
+        ...inputs,
+        publicKey,
+        //privateKey,
+        vaultSecretNames: {
+          publicKeyName,
+          privateKeyName,
+          revocationCertificateName,
+        },
+      },
     };
   }
 
-  // No need to be deleted the keys will be upsert when creating a new one.
-  // async delete(id: string, props: PGPOutputs) {
-  //   const client = createKeyVaultClient(props.vaultName);
-  //   await client.beginDeleteSecret(getSecretName(props.publicKeyName)).catch();
-  //   await client.beginDeleteSecret(getSecretName(props.privateKeyName)).catch();
-  // }
+  async delete(id: string, outputs: PGPOutputs): Promise<void> {
+    //Delete Vaults info
+    if (!outputs.vaultSecretNames) return;
 
-  // async update(
-  //   id: string,
-  //   olds: PGPOutputs,
-  //   news: PGPInputs
-  // ): Promise<pulumi.dynamic.UpdateResult> {
-  //   const rs = await this.create(news);
-  //   //Delete Ols key
-  //
-  //   const url = `https://${olds.vaultName}.vault.azure.net?api-version=7.0`;
-  //   const client = new SecretClient(url, new ClientCredential());
-  //
-  //   if (
-  //     olds.vaultName !== news.vaultName ||
-  //     olds.publicKeyName !== news.publicKeyName
-  //   ) {
-  //     await client
-  //       .beginDeleteSecret(getSecretName(olds.publicKeyName))
-  //       .catch((e) => {
-  //         //ignore if any error
-  //       });
-  //   }
-  //
-  //   if (
-  //     olds.vaultName !== news.vaultName ||
-  //     olds.privateKeyName !== news.privateKeyName
-  //   ) {
-  //     await client.beginDeleteSecret(getSecretName(olds.privateKeyName));
-  //   }
-  //
-  //   return rs;
-  // }
+    const client = getKeyVaultBase(outputs.vaultName);
+    await Promise.all([
+      client.deleteSecret(outputs.vaultSecretNames.publicKeyName),
+      client.deleteSecret(outputs.vaultSecretNames.privateKeyName),
+      client.deleteSecret(outputs.vaultSecretNames.revocationCertificateName),
+    ]).catch(console.error);
+  }
 }
 
 export class PGPResource extends BaseResource<PGPInputs, PGPOutputs> {
-  public readonly name: string;
-  public readonly publicKey!: pulumi.Output<string>;
-  public readonly privateKey!: pulumi.Output<string>;
+  declare readonly name: string;
+  declare readonly publicKey: pulumi.Output<string>;
+  //declare readonly privateKey: pulumi.Output<string>;
+  declare readonly vaultName: pulumi.Output<string>;
+  declare readonly vaultSecretNames: pulumi.Output<SecretNames>;
 
   constructor(
     name: string,
     args: BaseOptions<PGPInputs>,
     opts?: pulumi.CustomResourceOptions,
   ) {
-    super(new PGPResourceProvider(name), `csp:PGPs:${name}`, args, opts);
+    const innerOpts = pulumi.mergeOptions(opts, {
+      additionalSecretOutputs: ['publicKey', 'privateKey', 'passphrase'],
+    });
+    const innerInputs = {
+      publicKey: undefined,
+      //privateKey: undefined,
+      vaultSecretNames: undefined,
+      ...args,
+      passphrase: args.passphrase ? pulumi.secret(args.passphrase) : undefined,
+    };
+    super(
+      new PGPResourceProvider(name),
+      `csp:PGPs:${name}`,
+      innerInputs,
+      innerOpts,
+    );
     this.name = name;
   }
 }

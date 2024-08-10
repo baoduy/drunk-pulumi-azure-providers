@@ -1,11 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import {
-  BaseOptions,
-  BaseResource,
-  DefaultInputs,
-  DefaultOutputs,
-  BaseProvider,
-} from './BaseProvider';
+import { BaseOptions, BaseResource, BaseProvider } from './BaseProvider';
 import {
   CdnManagedHttpsParameters,
   CdnManagementClient,
@@ -13,7 +7,7 @@ import {
 } from '@azure/arm-cdn';
 import { DefaultAzureCredential } from '@azure/identity';
 
-export interface CdnHttpsEnableInputs extends DefaultInputs {
+export interface CdnHttpsEnableInputs {
   resourceGroupName: string;
   profileName: string;
   endpointName: string;
@@ -28,9 +22,7 @@ export interface CdnHttpsEnableInputs extends DefaultInputs {
   };
 }
 
-export interface CdnHttpsEnableOutputs
-  extends CdnHttpsEnableInputs,
-    DefaultOutputs {}
+export interface CdnHttpsEnableOutputs extends CdnHttpsEnableInputs {}
 
 class CdnHttpsEnableProvider
   implements BaseProvider<CdnHttpsEnableInputs, CdnHttpsEnableOutputs>

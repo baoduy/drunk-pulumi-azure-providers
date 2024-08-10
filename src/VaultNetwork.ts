@@ -1,15 +1,9 @@
-import {
-  BaseOptions,
-  BaseProvider,
-  BaseResource,
-  DefaultInputs,
-  DefaultOutputs,
-} from "./BaseProvider";
-import * as pulumi from "@pulumi/pulumi";
-import { KeyVaultManagementClient } from "@azure/arm-keyvault";
-import { DefaultAzureCredential } from "@azure/identity";
+import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
+import * as pulumi from '@pulumi/pulumi';
+import { KeyVaultManagementClient } from '@azure/arm-keyvault';
+import { DefaultAzureCredential } from '@azure/identity';
 
-interface VaultNetworkInputs extends DefaultInputs {
+interface VaultNetworkInputs {
   subscriptionId: string;
   resourceGroupName: string;
   vaultName: string;
@@ -17,7 +11,7 @@ interface VaultNetworkInputs extends DefaultInputs {
   subnetIds?: Array<string>;
 }
 
-interface VaultNetworkOutputs extends VaultNetworkInputs, DefaultOutputs {}
+interface VaultNetworkOutputs extends VaultNetworkInputs {}
 
 const updateSet = (
   currentSet: Set<string>,
@@ -37,7 +31,6 @@ class VaultNetworkProvider
     await this.update(
       this.name,
       {
-        name: this.name,
         ...inputs,
         ipAddresses: undefined,
         subnetIds: undefined,
@@ -78,8 +71,8 @@ class VaultNetworkProvider
     //Update the new VaultInfo
     let updated = false;
     const networkAcls = vaultInfo.properties.networkAcls ?? {
-      bypass: "AzureServices",
-      defaultAction: "Allow",
+      bypass: 'AzureServices',
+      defaultAction: 'Allow',
     };
     if (currentIps.size > 0) {
       updated = true;
@@ -125,7 +118,7 @@ export class VaultNetworkResource extends BaseResource<
     super(
       new VaultNetworkProvider(name),
       `csp:KeyVaultNetwork:${name}`,
-      args,
+      { ...args },
       opts,
     );
     this.name = name;
