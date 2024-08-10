@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { generateKey, SerializedKeyPair } from 'openpgp';
+import { generateKey } from 'openpgp';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import getKeyVaultBase from './AzBase/KeyVaultBase';
 
