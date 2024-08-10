@@ -16,6 +16,7 @@ interface VaultKeyOutputs {
   vaultName: string;
   vaultUrl: string;
   version: string;
+  key: KeyArgs;
 }
 
 class VaultKeyResourceProvider
@@ -25,14 +26,17 @@ class VaultKeyResourceProvider
 
   async create(
     props: VaultKeyInputs,
+    forceUpdate: boolean = false,
   ): Promise<pulumi.dynamic.CreateResult<VaultKeyOutputs>> {
     const client = getKeyVaultBase(props.vaultName);
     let key: KeyVaultKey | undefined;
 
     //Key is existed
-    if (await client.checkKeyExist(props.name)) {
+    if (!forceUpdate && (await client.checkKeyExist(props.name))) {
       key = await client.getKey(props.name);
-    } else key = await client.createRsaKey(props.name, props.key);
+    }
+    //Create/Update a the key
+    else key = await client.createRsaKey(props.name, props.key);
 
     //Await and re-load
     if (!key) {
@@ -42,6 +46,7 @@ class VaultKeyResourceProvider
     return {
       id: key?.id ?? key?.properties.id!,
       outs: {
+        key: props.key,
         id: key?.id ?? key?.properties.id!,
         name: key?.properties.name!,
         vaultName: props.vaultName,
@@ -56,7 +61,12 @@ class VaultKeyResourceProvider
     olds: VaultKeyOutputs,
     news: VaultKeyInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
-    return await this.create(news);
+    const forceUpdate =
+      olds.key?.keySize &&
+      news.key.keySize &&
+      olds.key.keySize !== news.key.keySize;
+
+    return await this.create(news, forceUpdate);
   }
 
   async delete(id: string, props: VaultKeyOutputs): Promise<void> {
