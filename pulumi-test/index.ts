@@ -1,13 +1,25 @@
 import * as pulumi from '@pulumi/pulumi';
-import { VaultKeyResource } from '@drunk-pulumi/azure-providers';
+import { KeyVaultBase, VaultKeyResource } from '@drunk-pulumi/azure-providers';
 
 const rs = (async () => {
-  const item = new VaultKeyResource('devdrunkcodingstg-encrypt-key', {
-    name: 'devdrunkcodingstg-encrypt-key',
-    key: { keySize: 4096, keyOps: ['wrapKey'] },
-    vaultName: 'global-drunkcoding-vlt',
-  });
-  return item;
+  const vault = new KeyVaultBase('global-drunkcoding-vlt');
+  const secrets = await vault.listSecrets();
+  console.log(
+    'secrets:',
+    secrets.map((i) => i.name),
+  );
+
+  const keys = await vault.listKeys();
+  console.log(
+    'keys:',
+    keys.map((i) => i.name),
+  );
+
+  const certs = await vault.listCerts();
+  console.log(
+    'certs:',
+    certs.map((i) => i.name),
+  );
 })();
 
 export default pulumi.output(rs);

@@ -53,6 +53,18 @@ export class KeyVaultBase {
     this.cache = getKeyVaultCache(keyVaultName);
   }
 
+  public async listSecrets() {
+    const list = new Array<SecretProperties>();
+    const rs = this.secretClient
+      .listPropertiesOfSecrets()
+      .byPage({ maxPageSize: 15 });
+
+    for await (const s of rs) {
+      s.forEach((p) => list.push(p));
+    }
+    return list;
+  }
+
   /** Get Secret Versions*/
   public async getSecretVersions(
     name: string,
@@ -72,6 +84,18 @@ export class KeyVaultBase {
     return versionsList;
   }
 
+  public async listKeys() {
+    const list = new Array<KeyProperties>();
+    const rs = this.keyClient
+      .listPropertiesOfKeys()
+      .byPage({ maxPageSize: 15 });
+
+    for await (const s of rs) {
+      s.forEach((p) => list.push(p));
+    }
+    return list;
+  }
+
   /** Get Key Versions*/
   public async getKeyVersions(
     name: string,
@@ -89,6 +113,18 @@ export class KeyVaultBase {
     //Filter for specific version only
     if (version) return versionsList.filter((s) => s.version === version);
     return versionsList;
+  }
+
+  public async listCerts() {
+    const list = new Array<CertificateProperties>();
+    const rs = this.certClient
+      .listPropertiesOfCertificates()
+      .byPage({ maxPageSize: 15 });
+
+    for await (const s of rs) {
+      s.forEach((p) => list.push(p));
+    }
+    return list;
   }
 
   /** Get Cert Versions*/
