@@ -29,36 +29,18 @@ const generateKeys = (options: RSAKeyPairOptions<'pem', 'pem'>) =>
 
 interface SshKeyInputs {
   password: string;
-  vaultName: string;
 }
 
-type SecretNames = {
-  publicKeyName: string;
-  privateKeyName: string;
-};
-
 interface SshKeyOutputs extends SshKeyInputs {
-  //privateKey: string;
+  password: string;
+  privateKey: string;
   publicKey: string;
-  vaultSecretNames: SecretNames;
 }
 
 class SshKeyResourceProvider
   implements BaseProvider<SshKeyInputs, SshKeyOutputs>
 {
   constructor(private name: string) {}
-
-  // eslint-disable-next-line @typescript-eslint/require-await
-  // async diff(
-  //   id: string,
-  //   previousOutput: SshKeyOutputs,
-  //   news: SshKeyInputs,
-  // ): Promise<pulumi.dynamic.DiffResult> {
-  //   return {
-  //     deleteBeforeReplace: false,
-  //     changes: previousOutput.password !== news.password,
-  //   };
-  // }
 
   async create(
     inputs: SshKeyInputs,
@@ -81,41 +63,34 @@ class SshKeyResourceProvider
     const privateKeyName = `${this.name}-privateKey`;
 
     //Create Key Vault items
-    const client = getKeyVaultBase(inputs.vaultName);
-    await client.setSecret(publicKeyName, publicKey, this.name);
-    await client.setSecret(privateKeyName, privateKey, this.name);
 
     return {
       id: this.name,
       outs: {
-        ...inputs,
+        password: inputs.password,
         publicKey,
-        vaultSecretNames: {
-          publicKeyName,
-          privateKeyName,
-        },
+        privateKey,
       },
     };
   }
 
-  async delete(id: string, outputs: SshKeyOutputs): Promise<void> {
-    //Delete Vaults info
-    if (!outputs.vaultSecretNames) return;
-
-    const client = getKeyVaultBase(outputs.vaultName);
-    await Promise.all([
-      client.deleteSecret(outputs.vaultSecretNames.publicKeyName),
-      client.deleteSecret(outputs.vaultSecretNames.privateKeyName),
-    ]).catch(console.error);
+  /** The method will be executed when pulumi resource is updating.
+   * We do nothing here but just return the output that was created before*/
+  async update(
+    id: string,
+    old: SshKeyOutputs,
+    news: SshKeyInputs,
+  ): Promise<pulumi.dynamic.UpdateResult<SshKeyOutputs>> {
+    //no update needed
+    return { outs: old };
   }
 }
 
 export class SshKeyResource extends BaseResource<SshKeyInputs, SshKeyOutputs> {
   declare readonly name: string;
   declare readonly publicKey: pulumi.Output<string>;
-  //declare readonly privateKey: pulumi.Output<string>;
-  declare readonly vaultName: pulumi.Output<string>;
-  declare readonly vaultSecretNames: pulumi.Output<SecretNames>;
+  declare readonly privateKey: pulumi.Output<string>;
+  declare readonly password: pulumi.Output<string>;
 
   constructor(
     name: string,
@@ -123,21 +98,25 @@ export class SshKeyResource extends BaseResource<SshKeyInputs, SshKeyOutputs> {
     opts?: pulumi.CustomResourceOptions,
   ) {
     const innerOpts = pulumi.mergeOptions(opts, {
+      //This is important to tell pulumi to encrypt these outputs in the state. The encrypting and decrypting will be handled bt pulumi automatically
       additionalSecretOutputs: ['publicKey', 'privateKey', 'password'],
     });
+
     const innerInputs = {
       publicKey: undefined,
-      //privateKey: undefined,
-      vaultSecretNames: undefined,
-      ...args,
+      privateKey: undefined,
+      //This to tell pulumi that this input is a secret, and it will be encrypted in the state as well.
       password: pulumi.secret(args.password),
     };
 
     super(
       new SshKeyResourceProvider(name),
-      `csp:SshKeys:${name}`,
+      `csp:SshGenerator:${name}`,
       innerInputs,
       innerOpts,
     );
   }
 }
+
+//Export the SshGenerator resource as default of the module
+export default SshKeyResource;
