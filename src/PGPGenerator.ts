@@ -28,37 +28,18 @@ const generatePGP = ({ user, passphrase, type, validDays }: PGPProps) => {
 };
 
 interface PGPInputs extends PGPProps {
-  vaultName: string;
+  user: UserInfo;
+  passphrase?: string;
 }
-
-type SecretNames = {
-  publicKeyName: string;
-  privateKeyName: string;
-  revocationCertificateName: string;
-};
 
 interface PGPOutputs extends PGPInputs {
   publicKey: string;
-  vaultSecretNames: SecretNames;
+  privateKey: string;
+  revocationCertificate: string;
 }
 
 class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
   constructor(private name: string) {}
-
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async diff(
-    id: string,
-    previousOutput: PGPOutputs,
-    news: PGPInputs,
-  ): Promise<pulumi.dynamic.DiffResult> {
-    return {
-      deleteBeforeReplace: false,
-      changes:
-        previousOutput.passphrase !== news.passphrase ||
-        previousOutput.validDays !== news.validDays ||
-        previousOutput.type !== news.type,
-    };
-  }
 
   async create(
     inputs: PGPInputs,
@@ -66,54 +47,35 @@ class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
     const { publicKey, privateKey, revocationCertificate } =
       await generatePGP(inputs);
 
-    const publicKeyName = `${this.name}-publicKey`;
-    const privateKeyName = `${this.name}-privateKey`;
-    const revocationCertificateName = `${this.name}-revocationCertificate`;
-
-    //Create Key Vault items
-    const client = getKeyVaultBase(inputs.vaultName);
-    await client.setSecret(publicKeyName, publicKey, this.name);
-    await client.setSecret(privateKeyName, privateKey, this.name);
-    await client.setSecret(
-      revocationCertificateName,
-      revocationCertificate,
-      this.name,
-    );
-
     return {
       id: this.name,
       outs: {
         ...inputs,
         publicKey,
-        //privateKey,
-        vaultSecretNames: {
-          publicKeyName,
-          privateKeyName,
-          revocationCertificateName,
-        },
+        privateKey,
+        revocationCertificate,
       },
     };
   }
 
-  async delete(id: string, outputs: PGPOutputs): Promise<void> {
-    //Delete Vaults info
-    if (!outputs.vaultSecretNames) return;
-
-    const client = getKeyVaultBase(outputs.vaultName);
-    await Promise.all([
-      client.deleteSecret(outputs.vaultSecretNames.publicKeyName),
-      client.deleteSecret(outputs.vaultSecretNames.privateKeyName),
-      client.deleteSecret(outputs.vaultSecretNames.revocationCertificateName),
-    ]).catch(console.error);
+  /** The method will be executed when pulumi resource is updating.
+   * We do nothing here but just return the output that was created before*/
+  async update(
+    id: string,
+    old: PGPOutputs,
+    news: PGPInputs,
+  ): Promise<pulumi.dynamic.UpdateResult<PGPOutputs>> {
+    //no update needed
+    return { outs: old };
   }
 }
 
 export class PGPResource extends BaseResource<PGPInputs, PGPOutputs> {
   declare readonly name: string;
   declare readonly publicKey: pulumi.Output<string>;
-  //declare readonly privateKey: pulumi.Output<string>;
-  declare readonly vaultName: pulumi.Output<string>;
-  declare readonly vaultSecretNames: pulumi.Output<SecretNames>;
+  declare readonly privateKey: pulumi.Output<string>;
+  declare readonly revocationCertificate: pulumi.Output<string>;
+  declare readonly passphrase?: pulumi.Output<string>;
 
   constructor(
     name: string,
@@ -121,12 +83,17 @@ export class PGPResource extends BaseResource<PGPInputs, PGPOutputs> {
     opts?: pulumi.CustomResourceOptions,
   ) {
     const innerOpts = pulumi.mergeOptions(opts, {
-      additionalSecretOutputs: ['publicKey', 'privateKey', 'passphrase'],
+      additionalSecretOutputs: [
+        'publicKey',
+        'privateKey',
+        'passphrase',
+        'revocationCertificate',
+      ],
     });
     const innerInputs = {
       publicKey: undefined,
-      //privateKey: undefined,
-      vaultSecretNames: undefined,
+      privateKey: undefined,
+      revocationCertificate: undefined,
       ...args,
       passphrase: args.passphrase ? pulumi.secret(args.passphrase) : undefined,
     };
@@ -139,3 +106,5 @@ export class PGPResource extends BaseResource<PGPInputs, PGPOutputs> {
     this.name = name;
   }
 }
+
+export default PGPResource;
