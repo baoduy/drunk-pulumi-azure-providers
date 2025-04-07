@@ -16,7 +16,7 @@ const replaceTextInFile = (filePath: string, searchText: string, replacementText
 
 // Example usage
 const filePath = './node_modules/openpgp/openpgp.d.ts'; // Path to your file
-const searchText = 'NodeStream as GenericNodeStream'; // Text to be replaced
-const replacementText = 'NodeWebStream as GenericNodeStream'; // Text to replace with
+const searchText = 'NodeWebStream as GenericNodeWebStream'; // Text to be replaced
+const replacementText = 'NodeStream as GenericNodeWebStream'; // Text to replace with
 
 replaceTextInFile(filePath, searchText, replacementText);

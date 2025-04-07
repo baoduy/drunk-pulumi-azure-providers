@@ -17,7 +17,7 @@ const generatePGP = ({ user, passphrase, type, validDays }: PGPProps) => {
   if (validDays) expireDate.setDate(expireDate.getDate() + validDays);
 
   return generateKey({
-    curve: 'ed25519',
+    curve: 'brainpoolP512r1',
     format: 'armored',
     type: type ?? 'rsa',
     date: now,
