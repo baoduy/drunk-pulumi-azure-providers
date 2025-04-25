@@ -15,10 +15,10 @@
         "@types/node": "^22"
     },
     "dependencies": {
-        "@azure/identity": "^4.4.1",
+        "@azure/identity": "^4.9.1",
         "@drunk-pulumi/azure-providers": "file:/../.out-bin",
-        "@pulumi/azure-native": "^2.55.0",
-        "@pulumi/pulumi": "^3.128.0",
-        "google-protobuf": "3.21.2"
+        "@pulumi/azure-native": "^3.2.0",
+        "@pulumi/pulumi": "^3.163.0",
+        "google-protobuf": "3.21.4"
     }
 }
