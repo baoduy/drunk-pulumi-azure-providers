@@ -10,7 +10,7 @@
     "dynamic providers"
   ],
   "pulumi": {
-    "resource": true,
+    "resource": false,
     "name": "@drunk-pulumi/azure-providers"
   },
   "repository": {
