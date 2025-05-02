@@ -5,7 +5,7 @@ import { getResourceInfoFromId } from './Helpers';
 
 export class SqlServer {
   private _client: SqlManagementClient;
-  constructor(private subscriptionId: string) {
+  constructor(subscriptionId: string) {
     this._client = new SqlManagementClient(
       new DefaultAzureCredential(),
       subscriptionId,
@@ -20,7 +20,7 @@ export class SqlServer {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
-  public pauseDb(sqlInfo: ResourceArgs, dbName: string) {
+  public pauseDb(sqlInfo: ResourceArgs, dbName: string): Promise<any> {
     return this._client.databases.beginPause(
       sqlInfo.resourceGroupName,
       sqlInfo.resourceName,
@@ -36,7 +36,7 @@ export class SqlServer {
       await Promise.all(db.map((d) => this.pauseDb(sqlInfo, d.name!)));
     }
   }
-  public resumeDb(sqlInfo: ResourceArgs, dbName: string) {
+  public resumeDb(sqlInfo: ResourceArgs, dbName: string): Promise<any> {
     return this._client.databases.beginResume(
       sqlInfo.resourceGroupName,
       sqlInfo.resourceName,

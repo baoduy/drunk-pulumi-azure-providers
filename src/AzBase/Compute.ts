@@ -20,21 +20,21 @@ export class VM {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
-  public stop(args: ResourceArgs) {
+  public stop(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachines.beginDeallocate(
       args.resourceGroupName,
       args.resourceName,
     );
   }
 
-  public start(args: ResourceArgs) {
+  public start(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachines.beginStart(
       args.resourceGroupName,
       args.resourceName,
     );
   }
 
-  public restart(args: ResourceArgs) {
+  public restart(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachines.beginRestart(
       args.resourceGroupName,
       args.resourceName,
@@ -62,21 +62,21 @@ export class VMS {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
-  public stop(args: ResourceArgs) {
+  public stop(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachineScaleSets.beginDeallocate(
       args.resourceGroupName,
       args.resourceName,
     );
   }
 
-  public start(args: ResourceArgs) {
+  public start(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachineScaleSets.beginStart(
       args.resourceGroupName,
       args.resourceName,
     );
   }
 
-  public restart(args: ResourceArgs) {
+  public restart(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachineScaleSets.beginRestart(
       args.resourceGroupName,
       args.resourceName,

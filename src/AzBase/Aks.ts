@@ -5,7 +5,7 @@ import { getResourceInfoFromId } from './Helpers';
 
 export class Aks {
   private _client: ContainerServiceClient;
-  constructor(private subscriptionId: string) {
+  constructor(subscriptionId: string) {
     this._client = new ContainerServiceClient(
       new DefaultAzureCredential(),
       subscriptionId,
@@ -20,13 +20,13 @@ export class Aks {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
-  public stop(args: ResourceArgs) {
+  public stop(args: ResourceArgs): Promise<any> {
     return this._client.managedClusters.beginStop(
       args.resourceGroupName,
       args.resourceName,
     );
   }
-  public start(args: ResourceArgs) {
+  public start(args: ResourceArgs): Promise<any> {
     return this._client.managedClusters.beginStart(
       args.resourceGroupName,
       args.resourceName,
