@@ -17,9 +17,6 @@ dependencies:
   '@pulumi/pulumi':
     specifier: ^3.163.0
     version: 3.167.0
-  google-protobuf:
-    specifier: 3.21.4
-    version: 3.21.4
 
 devDependencies:
   '@types/node':
