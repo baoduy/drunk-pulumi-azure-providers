@@ -5,7 +5,7 @@ import { getResourceInfoFromId } from './Helpers';
 
 export class MySqlFlexible {
   private _client: MySQLManagementFlexibleServerClient;
-  constructor(private subscriptionId: string) {
+  constructor(subscriptionId: string) {
     this._client = new MySQLManagementFlexibleServerClient(
       new DefaultAzureCredential(),
       subscriptionId,

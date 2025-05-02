@@ -20,14 +20,14 @@ export class PostgreSqlFlexible {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
-  public stop(args: ResourceArgs) {
+  public stop(args: ResourceArgs): Promise<any> {
     return this._client.servers.beginStop(
       args.resourceGroupName,
       args.resourceName,
     );
   }
 
-  public start(args: ResourceArgs) {
+  public start(args: ResourceArgs): Promise<any> {
     return this._client.servers.beginStart(
       args.resourceGroupName,
       args.resourceName,
