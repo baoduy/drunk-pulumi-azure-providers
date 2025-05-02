@@ -24,7 +24,6 @@
     "fix-issue": "ts-node .tasks/fix-issues.ts",
     "update-tsconfig": "ts-node ./.tasks/update-tsconfig.ts",
     "pack": "cd .out-bin && pnpm pack && cd ../",
-    "postinstall": "husky install",
     "new-stack": "pulumi stack init --secrets-provider=passphrase",
     "up": "pulumi up --yes --skip-preview",
     "reup": "pulumi up --refresh --yes --skip-preview",
@@ -47,7 +46,6 @@
     "cpy-cli": "^5.0.0",
     "cross-env": "^7.0.3",
     "eslint": "^9.25.1",
-    "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
@@ -75,11 +73,6 @@
   },
   "prettier": {
     "singleQuote": true
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
   },
   "lint-staged": {
     "**/*.{js,ts}": [

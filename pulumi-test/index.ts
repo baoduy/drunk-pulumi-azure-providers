@@ -1,25 +1,9 @@
 import * as pulumi from '@pulumi/pulumi';
-import { KeyVaultBase, VaultKeyResource } from '@drunk-pulumi/azure-providers';
+import { PGPResource } from '@drunk-pulumi/azure-providers';
 
 const rs = (async () => {
-  const vault = new KeyVaultBase('global-drunkcoding-vlt');
-  const secrets = await vault.listSecrets();
-  console.log(
-    'secrets:',
-    secrets.map((i) => i.name),
-  );
+  const vault = new PGPResource('global-drunkcoding-vlt', { user: { email: 'drunk@coding.net', name: 'drunkcoding' } });
 
-  const keys = await vault.listKeys();
-  console.log(
-    'keys:',
-    keys.map((i) => i.name),
-  );
-
-  const certs = await vault.listCerts();
-  console.log(
-    'certs:',
-    certs.map((i) => i.name),
-  );
 })();
 
 export default pulumi.output(rs);

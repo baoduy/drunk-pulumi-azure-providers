@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { generateKey } from 'openpgp';
+import * as openpgp from 'openpgp';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 
 type UserInfo = { name: string; email: string };
@@ -15,7 +15,7 @@ const generatePGP = ({ user, passphrase, type, validDays }: PGPProps) => {
   const expireDate = new Date();
   if (validDays) expireDate.setDate(expireDate.getDate() + validDays);
 
-  return generateKey({
+  return openpgp.generateKey({
     curve: 'brainpoolP512r1',
     format: 'armored',
     type: type ?? 'rsa',
