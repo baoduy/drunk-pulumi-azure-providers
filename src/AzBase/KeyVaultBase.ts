@@ -43,8 +43,11 @@ export class KeyVaultBase {
   private certClient: CertificateClient;
   private cache: KeyVaultCacheType;
 
-  public constructor(private keyVaultName: string) {
-    const url = `https://${keyVaultName}.vault.azure.net?api-version=7.0`;
+  public constructor(
+    private keyVaultName: string,
+    apiVersion: string,
+  ) {
+    const url = `https://${keyVaultName}.vault.azure.net`;
     const credential = new DefaultAzureCredential();
 
     this.secretClient = new SecretClient(url, credential);
@@ -435,4 +438,5 @@ export class KeyVaultBase {
   }
 }
 
-export default (keyVaultName: string) => new KeyVaultBase(keyVaultName);
+export default (keyVaultName: string, apiVersion: string = '7.0') =>
+  new KeyVaultBase(keyVaultName, apiVersion);

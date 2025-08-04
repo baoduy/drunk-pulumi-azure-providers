@@ -1,4 +1,4 @@
-name: drunk-pulumi-test
+name: drunk-pulumi-az-test-provider
 description: A testing project for @drunk-pulumi/azure
 runtime:
   name: nodejs
