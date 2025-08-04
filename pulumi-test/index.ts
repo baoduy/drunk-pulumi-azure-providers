@@ -1,25 +1,15 @@
 import * as pulumi from '@pulumi/pulumi';
-import { KeyVaultBase, VaultKeyResource } from '@drunk-pulumi/azure-providers';
+import { SshKeyResource } from '@drunk-pulumi/azure-providers';
+import KeyVault from '@drunk-pulumi/azure-providers/AzBase/KeyVaultBase';
 
 const rs = (async () => {
-  const vault = new KeyVaultBase('global-drunkcoding-vlt');
-  const secrets = await vault.listSecrets();
-  console.log(
-    'secrets:',
-    secrets.map((i) => i.name),
-  );
+  const rs = new SshKeyResource('global-drunkcoding-vlt', {
+    password: '123456',
+  });
 
-  const keys = await vault.listKeys();
-  console.log(
-    'keys:',
-    keys.map((i) => i.name),
-  );
+  var sr = await KeyVault('dev-common-afwjjp').getSecret('common-clientid');
 
-  const certs = await vault.listCerts();
-  console.log(
-    'certs:',
-    certs.map((i) => i.name),
-  );
+  return { rs, sr };
 })();
 
 export default pulumi.output(rs);

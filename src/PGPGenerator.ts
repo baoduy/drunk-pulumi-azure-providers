@@ -1,7 +1,6 @@
 import * as pulumi from '@pulumi/pulumi';
 import { generateKey } from 'openpgp';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
-import getKeyVaultBase from './AzBase/KeyVaultBase';
 
 type UserInfo = { name: string; email: string };
 export interface PGPProps {

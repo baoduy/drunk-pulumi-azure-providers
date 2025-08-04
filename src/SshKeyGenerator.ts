@@ -2,7 +2,6 @@ import * as forge from 'node-forge';
 import * as pulumi from '@pulumi/pulumi';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { generateKeyPair, RSAKeyPairOptions } from 'crypto';
-import getKeyVaultBase from './AzBase/KeyVaultBase';
 
 const generateKeys = (options: RSAKeyPairOptions<'pem', 'pem'>) =>
   new Promise<{ publicKey: string; privateKey: string }>((resolve, reject) => {
@@ -38,9 +37,8 @@ interface SshKeyOutputs extends SshKeyInputs {
 }
 
 class SshKeyResourceProvider
-  implements BaseProvider<SshKeyInputs, SshKeyOutputs>
-{
-  constructor(private name: string) {}
+  implements BaseProvider<SshKeyInputs, SshKeyOutputs> {
+  constructor(private name: string) { }
 
   async create(
     inputs: SshKeyInputs,
