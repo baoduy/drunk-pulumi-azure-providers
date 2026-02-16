@@ -240,7 +240,7 @@ async create(props: VaultCertInputs): Promise<pulumi.dynamic.CreateResult<VaultC
 
 ```typescript
 // Good - explains non-obvious behavior
-//Cert is existed
+// Certificate exists
 if (await client.checkCertExist(props.name)) {
   cert = await client.getCert(props.name);
 }

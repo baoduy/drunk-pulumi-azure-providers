@@ -106,15 +106,17 @@ async create(props: MyResourceInputs): Promise<pulumi.dynamic.CreateResult<MyRes
   // Retrieve secret securely
   const secret = await client.getSecret(props.secretName);
   
-  // Use secret value (don't log it!)
+  // Use secret value internally (don't log it!)
   const result = await someClient.authenticate(secret.value);
   
   return {
     id: result.id,
     outs: {
       id: result.id,
-      // Don't expose secret in outputs
-      // authToken: result.token,  // BAD
+      // If you need to return the secret value, wrap it
+      secretValue: pulumi.secret(secret.value),
+      // Don't expose secrets without wrapping
+      // rawSecret: secret.value,  // BAD - exposes secret
     },
   };
 }
