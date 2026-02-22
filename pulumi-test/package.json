@@ -18,6 +18,6 @@
         "@azure/identity": "^4.10.2",
         "@drunk-pulumi/azure-providers": "file:/../.out-bin",
         "@pulumi/azure-native": "^3.6.1",
-        "@pulumi/pulumi": "^3.187.0"
+        "@pulumi/pulumi": "^3.217.0"
     }
 }
