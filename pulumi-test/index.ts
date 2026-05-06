@@ -7,9 +7,14 @@ const rs = (async () => {
     password: '123456',
   });
 
-  var sr = await KeyVault('dev-common-afwjjp').getSecret('common-clientid');
+  const vault = KeyVault('dev-common-afwjjp');
+  //Get the secret from Key Vault
+  const sr = await vault.getSecret('common-clientid');
 
-  return { rs, sr };
+  //Get the secret from Key Vault
+  const newsr = await vault.setSecret('new-new', 'new-value');
+
+  return { rs, sr, newsr };
 })();
 
 export default pulumi.output(rs);
