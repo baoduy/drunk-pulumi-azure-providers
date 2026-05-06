@@ -3,7 +3,20 @@ import * as pulumi from '@pulumi/pulumi';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { generateKeyPair, RSAKeyPairOptions } from 'crypto';
 
-const generateKeys = (options: RSAKeyPairOptions<'pem', 'pem'>) =>
+type RsaPemKeyPairOptions = RSAKeyPairOptions & {
+  publicKeyEncoding: {
+    type: 'spki';
+    format: 'pem';
+  };
+  privateKeyEncoding: {
+    type: 'pkcs8';
+    format: 'pem';
+    cipher: 'aes-256-cbc';
+    passphrase: string;
+  };
+};
+
+const generateKeys = (options: RsaPemKeyPairOptions) =>
   new Promise<{ publicKey: string; privateKey: string }>((resolve, reject) => {
     generateKeyPair(
       'rsa',

@@ -1,5 +1,4 @@
 import * as pulumi from '@pulumi/pulumi';
-import { generateKey } from 'openpgp';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 
 type UserInfo = { name: string; email: string };
@@ -10,7 +9,13 @@ export interface PGPProps {
   validDays?: number;
 }
 
-const generatePGP = ({ user, passphrase, type, validDays }: PGPProps) => {
+const generatePGP = async ({
+  user,
+  passphrase,
+  type,
+  validDays,
+}: PGPProps) => {
+  const { generateKey } = await import('openpgp');
   const now = new Date();
   const expireDate = new Date();
   if (validDays) expireDate.setDate(expireDate.getDate() + validDays);

@@ -1,5 +1,6 @@
 import { PostgreSQLManagementFlexibleServerClient } from '@azure/arm-postgresql-flexible';
 import { DefaultAzureCredential } from '@azure/identity';
+import type { Server } from '@azure/arm-postgresql-flexible';
 import { ResourceArgs, ResourceInfo } from '../types';
 import { getResourceInfoFromId } from './Helpers';
 
@@ -14,8 +15,8 @@ export class PostgreSqlFlexible {
 
   public async search(filter: string | undefined = undefined) {
     const list = new Array<ResourceInfo>();
-    for await (const aks of this._client.servers.list().byPage()) {
-      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
+    for await (const page of this._client.servers.listBySubscription().byPage()) {
+      list.push(...page.map((server: Server) => getResourceInfoFromId(server.id!)));
     }
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
