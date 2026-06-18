@@ -47,9 +47,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^10.3.0",
     "lint-staged": "^16.4.0",
-    "prettier": "^3.8.3",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3"
+    "prettier": "^3.8.3"
   },
   "dependencies": {
     "@azure/arm-apimanagement": "^10.0.0",
@@ -69,7 +67,9 @@
     "@pulumi/azure-native": "^3.17.0",
     "@pulumi/pulumi": "^3.235.0",
     "node-forge": "^1.4.0",
-    "openpgp": "^6.3.0"
+    "openpgp": "^6.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
   },
   "prettier": {
     "singleQuote": true
