@@ -138,3 +138,6 @@ bin
 .fleet
 **/.env
 .pnpm-store
+.understand-anything/intermediate/
+.understand-anything/tmp/
+.understand-anything/diff-overlay.json
