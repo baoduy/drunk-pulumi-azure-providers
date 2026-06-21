@@ -11,7 +11,7 @@ interface VaultNetworkInputs {
   subnetIds?: Array<string>;
 }
 
-interface VaultNetworkOutputs extends VaultNetworkInputs {}
+type VaultNetworkOutputs = VaultNetworkInputs
 
 const updateSet = (
   currentSet: Set<string>,

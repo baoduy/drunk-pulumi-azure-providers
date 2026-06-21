@@ -22,7 +22,7 @@ export interface CdnHttpsEnableInputs {
   };
 }
 
-export interface CdnHttpsEnableOutputs extends CdnHttpsEnableInputs {}
+export type CdnHttpsEnableOutputs = CdnHttpsEnableInputs
 
 class CdnHttpsEnableProvider
   implements BaseProvider<CdnHttpsEnableInputs, CdnHttpsEnableOutputs>
@@ -64,7 +64,7 @@ class CdnHttpsEnableProvider
           minimumTlsVersion: 'TLS12',
         } as CdnManagedHttpsParameters);
 
-    const rs = await client.customDomains.beginEnableCustomHttps(
+    const poller = await client.customDomains.beginEnableCustomHttps(
       props.resourceGroupName,
       props.profileName,
       props.endpointName,
@@ -73,6 +73,7 @@ class CdnHttpsEnableProvider
         customDomainHttpsParameters,
       },
     );
+    await poller.pollUntilDone();
 
     return {
       id: `/subscriptions/${props.subscriptionId}/resourcegroups/${props.resourceGroupName}/providers/Microsoft.Cdn/profiles/${props.profileName}/endpoints/${props.endpointName}/customdomains/${props.customDomainName}`,

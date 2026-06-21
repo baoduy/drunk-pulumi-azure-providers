@@ -67,7 +67,7 @@ class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
   async update(
     id: string,
     old: PGPOutputs,
-    news: PGPInputs,
+    _news: PGPInputs,
   ): Promise<pulumi.dynamic.UpdateResult<PGPOutputs>> {
     //no update needed
     return { outs: old };

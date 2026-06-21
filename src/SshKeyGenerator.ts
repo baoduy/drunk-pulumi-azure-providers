@@ -70,11 +70,6 @@ class SshKeyResourceProvider
       },
     });
 
-    const publicKeyName = `${this.name}-publicKey`;
-    const privateKeyName = `${this.name}-privateKey`;
-
-    //Create Key Vault items
-
     return {
       id: this.name,
       outs: {
@@ -90,7 +85,7 @@ class SshKeyResourceProvider
   async update(
     id: string,
     old: SshKeyOutputs,
-    news: SshKeyInputs,
+    _news: SshKeyInputs,
   ): Promise<pulumi.dynamic.UpdateResult<SshKeyOutputs>> {
     //no update needed
     return { outs: old };

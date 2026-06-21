@@ -12,7 +12,7 @@ export const waitAndRetry = async <T>(
 ): Promise<T> => {
   let rs = await caller();
 
-  let count = 0;
+  const count = 0;
   while (!rs && count < times) {
     await sleep(eachSecond);
     rs = await caller();
