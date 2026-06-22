@@ -20,6 +20,7 @@ export class VM {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public stop(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachines.beginDeallocate(
       args.resourceGroupName,
@@ -27,6 +28,7 @@ export class VM {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public start(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachines.beginStart(
       args.resourceGroupName,
@@ -34,6 +36,7 @@ export class VM {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public restart(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachines.beginRestart(
       args.resourceGroupName,
@@ -62,6 +65,7 @@ export class VMS {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public stop(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachineScaleSets.beginDeallocate(
       args.resourceGroupName,
@@ -69,6 +73,7 @@ export class VMS {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public start(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachineScaleSets.beginStart(
       args.resourceGroupName,
@@ -76,6 +81,7 @@ export class VMS {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public restart(args: ResourceArgs): Promise<any> {
     return this._client.virtualMachineScaleSets.beginRestart(
       args.resourceGroupName,

@@ -44,14 +44,14 @@ class VaultKeyResourceProvider
     }
 
     return {
-      id: key?.id ?? key?.properties.id!,
+      id: key!.id! ?? key!.properties.id!,
       outs: {
         key: props.key,
-        id: key?.id ?? key?.properties.id!,
-        name: key?.properties.name!,
+        id: key!.id! ?? key!.properties.id!,
+        name: key!.name!,
         vaultName: props.vaultName,
-        vaultUrl: key?.properties.vaultUrl!,
-        version: key?.properties.version!,
+        vaultUrl: key!.properties.vaultUrl!,
+        version: key!.properties.version!,
       },
     };
   }

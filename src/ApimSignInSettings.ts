@@ -1,4 +1,4 @@
-/* eslint-disable  @typescript-eslint/no-unsafe-return */
+ 
 
 import { ApiManagementClient } from '@azure/arm-apimanagement';
 import { DefaultAzureCredential } from '@azure/identity';
@@ -13,7 +13,7 @@ interface ApimSignInSettingsInputs extends Omit<ResourceArgs, 'resourceName'> {
   enabled: boolean;
 }
 
-interface ApimSignInSettingsOutputs extends ApimSignInSettingsInputs {}
+type ApimSignInSettingsOutputs = ApimSignInSettingsInputs
 
 class ApimSignInSettingsResourceProvider
   implements BaseProvider<ApimSignInSettingsInputs, ApimSignInSettingsOutputs>
