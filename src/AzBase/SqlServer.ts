@@ -31,7 +31,7 @@ export class SqlServer {
   public async pauseAllDbs(sqlInfo: ResourceArgs) {
     const dbs = this._client.databases
       .listByServer(sqlInfo.resourceGroupName, sqlInfo.resourceName)
-      .byPage({ maxPageSize: 5 });
+      .byPage();
 
     for await (const db of dbs) {
       await Promise.all(db.map((d) => this.pauseDb(sqlInfo, d.name!)));
@@ -48,7 +48,7 @@ export class SqlServer {
   public async resumeAllDbs(sqlInfo: ResourceArgs) {
     const dbs = this._client.databases
       .listByServer(sqlInfo.resourceGroupName, sqlInfo.resourceName)
-      .byPage({ maxPageSize: 5 });
+      .byPage();
 
     for await (const db of dbs) {
       await Promise.all(db.map((d) => this.resumeDb(sqlInfo, d.name!)));
