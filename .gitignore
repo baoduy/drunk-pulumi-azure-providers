@@ -138,3 +138,8 @@ bin
 .fleet
 **/.env
 .pnpm-store
+
+# understand-anything scratch (graph + metadata are committed; these are regenerable)
+.understand-anything/intermediate/
+.understand-anything/tmp/
+.understand-anything/.trash-*/

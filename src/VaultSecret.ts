@@ -42,11 +42,11 @@ class VaultSecretResourceProvider
     }
 
     return {
-      id: ss?.properties.id!,
+      id: ss!.properties.id!,
       outs: {
         ...props,
-        version: ss?.properties.version!,
-        vaultUrl: ss?.properties.vaultUrl!,
+        version: ss!.properties.version!,
+        vaultUrl: ss!.properties.vaultUrl!,
       },
     };
   }

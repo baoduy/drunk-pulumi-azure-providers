@@ -21,6 +21,7 @@ export class PostgreSqlFlexible {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public stop(args: ResourceArgs): Promise<any> {
     return this._client.servers.beginStop(
       args.resourceGroupName,
@@ -28,6 +29,7 @@ export class PostgreSqlFlexible {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public start(args: ResourceArgs): Promise<any> {
     return this._client.servers.beginStart(
       args.resourceGroupName,

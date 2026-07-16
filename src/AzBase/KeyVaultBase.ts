@@ -45,7 +45,7 @@ export class KeyVaultBase {
 
   public constructor(
     private keyVaultName: string,
-    apiVersion: string,
+    _apiVersion: string,
   ) {
     const url = `https://${keyVaultName}.vault.azure.net`;
     const credential = new DefaultAzureCredential();
@@ -397,7 +397,7 @@ export class KeyVaultBase {
   /** Get or create Key */
   public async getOrCreateKey(
     name: string,
-    type: 'Rsa' = 'Rsa',
+    _type: 'Rsa' = 'Rsa',
     args: KeyArgs | undefined = undefined,
   ) {
     if (await this.checkKeyExist(name, undefined))

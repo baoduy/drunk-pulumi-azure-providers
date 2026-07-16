@@ -20,6 +20,7 @@ export class SqlServer {
     return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public pauseDb(sqlInfo: ResourceArgs, dbName: string): Promise<any> {
     return this._client.databases.beginPause(
       sqlInfo.resourceGroupName,
@@ -30,12 +31,13 @@ export class SqlServer {
   public async pauseAllDbs(sqlInfo: ResourceArgs) {
     const dbs = this._client.databases
       .listByServer(sqlInfo.resourceGroupName, sqlInfo.resourceName)
-      .byPage({ maxPageSize: 5 });
+      .byPage();
 
     for await (const db of dbs) {
       await Promise.all(db.map((d) => this.pauseDb(sqlInfo, d.name!)));
     }
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public resumeDb(sqlInfo: ResourceArgs, dbName: string): Promise<any> {
     return this._client.databases.beginResume(
       sqlInfo.resourceGroupName,
@@ -46,7 +48,7 @@ export class SqlServer {
   public async resumeAllDbs(sqlInfo: ResourceArgs) {
     const dbs = this._client.databases
       .listByServer(sqlInfo.resourceGroupName, sqlInfo.resourceName)
-      .byPage({ maxPageSize: 5 });
+      .byPage();
 
     for await (const db of dbs) {
       await Promise.all(db.map((d) => this.resumeDb(sqlInfo, d.name!)));
