@@ -9,6 +9,7 @@ const excludeFolders: string[] = [
   '.out-bin',
   'z_tests',
   '.tasks',
+  '.pnpm-store',
 ]; // List of folder names to exclude
 
 // Function to recursively find .ts files, excluding specified folders
