@@ -5,6 +5,9 @@
   "description": "The custom dynamic providers for pulumi-azure",
   "license": "MIT",
   "private": false,
+  "engines": {
+    "node": ">=22"
+  },
   "keywords": [
     "pulumi-azure",
     "dynamic providers"
