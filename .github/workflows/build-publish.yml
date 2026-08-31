@@ -9,6 +9,11 @@ on:
     #paths:
     #- src/**
 
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  
 env:
   Enable_Release: 'true'
 
