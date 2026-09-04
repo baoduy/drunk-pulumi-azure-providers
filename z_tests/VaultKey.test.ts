@@ -1,52 +1,195 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { KeyClient } from '@azure/keyvault-keys';
 import { KeyVaultBase } from '../src/AzBase/KeyVaultBase';
 import { VaultKeyResourceProvider } from '../src/VaultKey';
 
-function fakePagedResult<T>(pages: T[][]) {
-  return {
-    byPage: () => ({
-      [Symbol.asyncIterator]: async function* () {
-        for (const page of pages) yield page;
-      },
-    }),
-  };
-}
+// `getKeyVaultBase` is stubbed indirectly: KeyVaultBase's own methods are
+// stubbed on its prototype so `getKeyVaultBase(vaultName)` still builds a real
+// (but network-inert) KeyVaultBase instance - no DI refactor of src/ needed.
 
 describe('VaultKeyResourceProvider', () => {
+  let checkKeyExistStub: sinon.SinonStub;
+  let getKeyStub: sinon.SinonStub;
+  let createRsaKeyStub: sinon.SinonStub;
+  let deleteKeyStub: sinon.SinonStub;
+
+  beforeEach(() => {
+    checkKeyExistStub = sinon.stub(KeyVaultBase.prototype, 'checkKeyExist');
+    getKeyStub = sinon.stub(KeyVaultBase.prototype, 'getKey');
+    createRsaKeyStub = sinon.stub(KeyVaultBase.prototype, 'createRsaKey');
+    deleteKeyStub = sinon.stub(KeyVaultBase.prototype, 'deleteKey');
+  });
+
   afterEach(() => sinon.restore());
 
-  describe('delete', () => {
-    it('guards against a missing vaultName and makes no SDK call', async () => {
-      const beginDeleteKey = sinon.stub(KeyClient.prototype, 'beginDeleteKey');
-      sinon.stub(console, 'error');
+  const provider = () => new VaultKeyResourceProvider('test-key');
+  const keyArgs = { keySize: 2048 as const };
 
-      const provider = new VaultKeyResourceProvider('test');
-      await provider.delete('id1', {
-        id: 'id1',
-        name: 'key1',
-        vaultName: undefined as any,
-        vaultUrl: 'https://x.vault.azure.net',
-        version: 'v1',
-        key: {},
+  describe('create', () => {
+    it('creates a new key when none exists', async () => {
+      checkKeyExistStub.resolves(false);
+      createRsaKeyStub.resolves({
+        id: 'key-id',
+        name: 'my-key',
+        properties: { id: 'key-id', vaultUrl: 'u', version: 'v1' },
       });
 
-      expect(beginDeleteKey.called).to.equal(false);
+      const result = await provider().create({
+        name: 'my-key',
+        vaultName: 'my-vault',
+        key: keyArgs,
+      });
+
+      expect(checkKeyExistStub.calledOnceWithExactly('my-key')).to.be.true;
+      expect(createRsaKeyStub.calledOnceWithExactly('my-key', keyArgs)).to.be.true;
+      expect(getKeyStub.called).to.be.false;
+      expect(result.id).to.equal('key-id');
+      expect(result.outs).to.include({
+        name: 'my-key',
+        vaultName: 'my-vault',
+        version: 'v1',
+        vaultUrl: 'u',
+      });
+    });
+
+    it('reuses the existing key without recreating it', async () => {
+      checkKeyExistStub.resolves(true);
+      getKeyStub.resolves({
+        id: 'key-id',
+        name: 'my-key',
+        properties: { id: 'key-id', vaultUrl: 'u', version: 'v1' },
+      });
+
+      const result = await provider().create({
+        name: 'my-key',
+        vaultName: 'my-vault',
+        key: keyArgs,
+      });
+
+      expect(createRsaKeyStub.called).to.be.false;
+      expect(getKeyStub.calledOnceWithExactly('my-key')).to.be.true;
+      expect(result.outs.version).to.equal('v1');
+    });
+
+    it('forces recreation and skips the existence check when forceUpdate is true', async () => {
+      createRsaKeyStub.resolves({
+        id: 'key-id',
+        name: 'my-key',
+        properties: { id: 'key-id', vaultUrl: 'u', version: 'v2' },
+      });
+
+      await provider().create(
+        { name: 'my-key', vaultName: 'my-vault', key: keyArgs },
+        true,
+      );
+
+      expect(checkKeyExistStub.called).to.be.false;
+      expect(createRsaKeyStub.calledOnceWithExactly('my-key', keyArgs)).to.be.true;
+    });
+
+    it('falls back to waitAndRetry(getKey) when neither path returns a key', async () => {
+      checkKeyExistStub.resolves(false);
+      createRsaKeyStub.resolves(undefined);
+      getKeyStub.resolves({
+        id: 'key-id',
+        name: 'my-key',
+        properties: { id: 'key-id', vaultUrl: 'u', version: 'v3' },
+      });
+
+      const result = await provider().create({
+        name: 'my-key',
+        vaultName: 'my-vault',
+        key: keyArgs,
+      });
+
+      expect(getKeyStub.calledOnceWithExactly('my-key')).to.be.true;
+      expect(result.outs.version).to.equal('v3');
+    });
+  });
+
+  describe('update', () => {
+    it('forces recreation when keySize changes', async () => {
+      createRsaKeyStub.resolves({
+        id: 'key-id',
+        name: 'my-key',
+        properties: { id: 'key-id', vaultUrl: 'u', version: 'v4' },
+      });
+
+      await provider().update(
+        'id',
+        {
+          id: 'id',
+          name: 'my-key',
+          vaultName: 'my-vault',
+          vaultUrl: 'u',
+          version: 'v1',
+          key: { keySize: 2048 },
+        },
+        { name: 'my-key', vaultName: 'my-vault', key: { keySize: 4096 } },
+      );
+
+      expect(checkKeyExistStub.called).to.be.false;
+      expect(
+        createRsaKeyStub.calledOnceWithExactly('my-key', { keySize: 4096 }),
+      ).to.be.true;
+    });
+
+    it('reuses the existing key when keySize is unchanged', async () => {
+      checkKeyExistStub.resolves(true);
+      getKeyStub.resolves({
+        id: 'key-id',
+        name: 'my-key',
+        properties: { id: 'key-id', vaultUrl: 'u', version: 'v1' },
+      });
+
+      await provider().update(
+        'id',
+        {
+          id: 'id',
+          name: 'my-key',
+          vaultName: 'my-vault',
+          vaultUrl: 'u',
+          version: 'v1',
+          key: { keySize: 2048 },
+        },
+        { name: 'my-key', vaultName: 'my-vault', key: { keySize: 2048 } },
+      );
+
+      expect(createRsaKeyStub.called).to.be.false;
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes the key by name', async () => {
+      deleteKeyStub.resolves(undefined);
+
+      await provider().delete('id', {
+        id: 'id',
+        name: 'my-key',
+        vaultName: 'my-vault',
+        vaultUrl: 'u',
+        version: 'v1',
+        key: keyArgs,
+      });
+
+      expect(deleteKeyStub.calledOnceWithExactly('my-key')).to.be.true;
+    });
+
+    it('guards against a missing vaultName and makes no SDK call', async () => {
+      const errorSpy = sinon.stub(console, 'error');
+
+      await provider().delete('id', { name: 'my-key' } as any);
+
+      expect(deleteKeyStub.called).to.be.false;
+      expect(errorSpy.calledOnce).to.be.true;
     });
 
     it('propagates a failed delete to the caller', async () => {
-      // KeyVaultBase.deleteKey already tolerates SDK failures internally (see
-      // KeyVaultBase.test.ts); stub the client boundary itself to prove this provider
-      // method has no .catch() of its own and lets a rejection through unmodified.
-      sinon
-        .stub(KeyVaultBase.prototype, 'deleteKey')
-        .rejects(new Error('vault unreachable'));
+      deleteKeyStub.rejects(new Error('vault unreachable'));
 
-      const provider = new VaultKeyResourceProvider('test');
       let threw = false;
       try {
-        await provider.delete('id1', {
+        await provider().delete('id1', {
           id: 'id1',
           name: 'key1',
           vaultName: 'vault1',
@@ -59,61 +202,6 @@ describe('VaultKeyResourceProvider', () => {
         expect(err.message).to.equal('vault unreachable');
       }
       expect(threw).to.equal(true);
-    });
-  });
-
-  describe('create / update', () => {
-    it('creates a new key when none exists', async () => {
-      sinon
-        .stub(KeyClient.prototype, 'listPropertiesOfKeyVersions')
-        .returns(fakePagedResult([[]]) as any);
-      sinon.stub(KeyClient.prototype, 'getDeletedKey').rejects();
-      const createRsaKey = sinon.stub(KeyClient.prototype, 'createRsaKey').resolves({
-        id: 'id1',
-        name: 'k',
-        properties: { id: 'id1', vaultUrl: 'https://vault1.vault.azure.net', version: 'v1' },
-      } as any);
-
-      const provider = new VaultKeyResourceProvider('test');
-      const result = await provider.create({
-        name: 'k',
-        vaultName: 'vault1',
-        key: { keySize: 2048 },
-      });
-
-      expect(createRsaKey.calledOnce).to.equal(true);
-      expect(result.outs.name).to.equal('k');
-    });
-
-    it('forces re-creation on update when keySize changes', async () => {
-      sinon.stub(KeyClient.prototype, 'getDeletedKey').rejects();
-      const createRsaKey = sinon.stub(KeyClient.prototype, 'createRsaKey').resolves({
-        id: 'id2',
-        name: 'k',
-        properties: { id: 'id2', vaultUrl: 'https://vault1.vault.azure.net', version: 'v2' },
-      } as any);
-      const checkKeyExist = sinon.stub(
-        KeyClient.prototype,
-        'listPropertiesOfKeyVersions',
-      );
-
-      const provider = new VaultKeyResourceProvider('test');
-      await provider.update(
-        'id1',
-        {
-          id: 'id1',
-          name: 'k',
-          vaultName: 'vault1',
-          vaultUrl: 'https://vault1.vault.azure.net',
-          version: 'v1',
-          key: { keySize: 2048 },
-        },
-        { name: 'k', vaultName: 'vault1', key: { keySize: 4096 } },
-      );
-
-      // forced update bypasses the exist-check and re-creates directly
-      expect(checkKeyExist.called).to.equal(false);
-      expect(createRsaKey.calledOnce).to.equal(true);
     });
   });
 });

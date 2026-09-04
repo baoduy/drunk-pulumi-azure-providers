@@ -1,35 +1,153 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { CertificateClient } from '@azure/keyvault-certificates';
 import { KeyVaultBase } from '../src/AzBase/KeyVaultBase';
 import { VaultCertResourceProvider } from '../src/VaultCert';
 
-function fakePagedResult<T>(pages: T[][]) {
-  return {
-    byPage: () => ({
-      [Symbol.asyncIterator]: async function* () {
-        for (const page of pages) yield page;
-      },
-    }),
-  };
-}
+// `getKeyVaultBase` is stubbed indirectly: KeyVaultBase's own methods are
+// stubbed on its prototype so `getKeyVaultBase(vaultName)` still builds a real
+// (but network-inert) KeyVaultBase instance - no DI refactor of src/ needed.
 
 describe('VaultCertResourceProvider', () => {
+  let checkCertExistStub: sinon.SinonStub;
+  let getCertStub: sinon.SinonStub;
+  let createSelfSignCertStub: sinon.SinonStub;
+  let deleteCertStub: sinon.SinonStub;
+
+  beforeEach(() => {
+    checkCertExistStub = sinon.stub(KeyVaultBase.prototype, 'checkCertExist');
+    getCertStub = sinon.stub(KeyVaultBase.prototype, 'getCert');
+    createSelfSignCertStub = sinon.stub(
+      KeyVaultBase.prototype,
+      'createSelfSignCert',
+    );
+    deleteCertStub = sinon.stub(KeyVaultBase.prototype, 'deleteCert');
+  });
+
   afterEach(() => sinon.restore());
 
-  describe('delete', () => {
-    it('propagates a failed delete to the caller', async () => {
-      // KeyVaultBase.deleteCert already tolerates SDK failures internally (see
-      // KeyVaultBase.test.ts); stub the client boundary itself to prove this provider
-      // method has no .catch() of its own and lets a rejection through unmodified.
-      sinon
-        .stub(KeyVaultBase.prototype, 'deleteCert')
-        .rejects(new Error('vault unreachable'));
+  const provider = () => new VaultCertResourceProvider('test-cert');
+  const certArgs = { subject: 'CN=test.example.com' };
 
-      const provider = new VaultCertResourceProvider('test');
+  describe('create', () => {
+    it('creates a self-signed cert and polls until done when none exists', async () => {
+      checkCertExistStub.resolves(false);
+      const pollUntilDone = sinon.stub().resolves({
+        id: 'cert-id',
+        name: 'my-cert',
+        properties: { id: 'cert-id', vaultUrl: 'u', version: 'v1' },
+      });
+      createSelfSignCertStub.resolves({ pollUntilDone });
+
+      const result = await provider().create({
+        name: 'my-cert',
+        vaultName: 'my-vault',
+        cert: certArgs,
+      });
+
+      expect(
+        createSelfSignCertStub.calledOnceWithExactly('my-cert', certArgs),
+      ).to.be.true;
+      expect(pollUntilDone.calledOnce).to.be.true;
+      expect(getCertStub.called).to.be.false;
+      expect(result.id).to.equal('cert-id');
+      expect(result.outs).to.include({
+        name: 'my-cert',
+        vaultName: 'my-vault',
+        version: 'v1',
+        vaultUrl: 'u',
+      });
+    });
+
+    it('reuses the existing cert without recreating it', async () => {
+      checkCertExistStub.resolves(true);
+      getCertStub.resolves({
+        id: 'cert-id',
+        name: 'my-cert',
+        properties: { id: 'cert-id', vaultUrl: 'u', version: 'v1' },
+      });
+
+      const result = await provider().create({
+        name: 'my-cert',
+        vaultName: 'my-vault',
+        cert: certArgs,
+      });
+
+      expect(createSelfSignCertStub.called).to.be.false;
+      expect(getCertStub.calledOnceWithExactly('my-cert')).to.be.true;
+      expect(result.outs.version).to.equal('v1');
+    });
+
+    it('falls back to waitAndRetry(getCert) when neither path returns a cert', async () => {
+      checkCertExistStub.resolves(false);
+      const pollUntilDone = sinon.stub().resolves(undefined);
+      createSelfSignCertStub.resolves({ pollUntilDone });
+      getCertStub.resolves({
+        id: 'cert-id',
+        name: 'my-cert',
+        properties: { id: 'cert-id', vaultUrl: 'u', version: 'v2' },
+      });
+
+      const result = await provider().create({
+        name: 'my-cert',
+        vaultName: 'my-vault',
+        cert: certArgs,
+      });
+
+      expect(getCertStub.calledOnceWithExactly('my-cert')).to.be.true;
+      expect(result.outs.version).to.equal('v2');
+    });
+  });
+
+  describe('update', () => {
+    it('recreates the cert via create() and returns its outs', async () => {
+      checkCertExistStub.resolves(false);
+      const pollUntilDone = sinon.stub().resolves({
+        id: 'cert-id',
+        name: 'my-cert',
+        properties: { id: 'cert-id', vaultUrl: 'u', version: 'v2' },
+      });
+      createSelfSignCertStub.resolves({ pollUntilDone });
+
+      const result = await provider().update(
+        'id',
+        {
+          id: 'id',
+          name: 'my-cert',
+          vaultName: 'my-vault',
+          vaultUrl: 'u',
+          version: 'v1',
+        },
+        { name: 'my-cert', vaultName: 'my-vault', cert: certArgs },
+      );
+
+      expect(
+        createSelfSignCertStub.calledOnceWithExactly('my-cert', certArgs),
+      ).to.be.true;
+      expect(result.outs.version).to.equal('v2');
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes the cert by name', async () => {
+      deleteCertStub.resolves(undefined);
+
+      await provider().delete('id', {
+        id: 'id',
+        name: 'my-cert',
+        vaultName: 'my-vault',
+        vaultUrl: 'u',
+        version: 'v1',
+      });
+
+      expect(deleteCertStub.calledOnceWithExactly('my-cert')).to.be.true;
+    });
+
+    it('propagates a failed delete to the caller', async () => {
+      deleteCertStub.rejects(new Error('vault unreachable'));
+
       let threw = false;
       try {
-        await provider.delete('id1', {
+        await provider().delete('id1', {
           id: 'id1',
           name: 'cert1',
           vaultName: 'vault1',
@@ -41,65 +159,6 @@ describe('VaultCertResourceProvider', () => {
         expect(err.message).to.equal('vault unreachable');
       }
       expect(threw).to.equal(true);
-    });
-  });
-
-  describe('create / update', () => {
-    it('creates a new self-signed cert when none exists', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'listPropertiesOfCertificateVersions')
-        .returns(fakePagedResult([[]]) as any);
-      const pollUntilDone = sinon.stub().resolves({
-        id: 'id1',
-        name: 'c',
-        properties: { id: 'id1', vaultUrl: 'https://vault1.vault.azure.net', version: 'v1' },
-      });
-      const beginCreateCertificate = sinon
-        .stub(CertificateClient.prototype, 'beginCreateCertificate')
-        .resolves({ pollUntilDone } as any);
-
-      const provider = new VaultCertResourceProvider('test');
-      const result = await provider.create({
-        name: 'c',
-        vaultName: 'vault1',
-        cert: { subject: 'test.local' },
-      });
-
-      expect(beginCreateCertificate.calledOnce).to.equal(true);
-      expect(result.outs.name).to.equal('c');
-    });
-
-    it('reuses an existing cert instead of re-issuing it', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'listPropertiesOfCertificateVersions')
-        .returns(fakePagedResult([[{ name: 'c', enabled: true }]]) as any);
-      const getCertificate = sinon
-        .stub(CertificateClient.prototype, 'getCertificate')
-        .resolves({
-          id: 'id1',
-          name: 'c',
-          properties: { id: 'id1', vaultUrl: 'https://vault1.vault.azure.net', version: 'v1' },
-        } as any);
-      const beginCreateCertificate = sinon.stub(
-        CertificateClient.prototype,
-        'beginCreateCertificate',
-      );
-
-      const provider = new VaultCertResourceProvider('test');
-      await provider.update(
-        'id1',
-        {
-          id: 'id1',
-          name: 'c',
-          vaultName: 'vault1',
-          vaultUrl: 'https://vault1.vault.azure.net',
-          version: 'v1',
-        },
-        { name: 'c', vaultName: 'vault1', cert: { subject: 'test.local' } },
-      );
-
-      expect(getCertificate.calledOnce).to.equal(true);
-      expect(beginCreateCertificate.called).to.equal(false);
     });
   });
 });

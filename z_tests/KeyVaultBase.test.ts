@@ -5,8 +5,8 @@ import { KeyClient } from '@azure/keyvault-keys';
 import { CertificateClient } from '@azure/keyvault-certificates';
 import { KeyVaultBase } from '../src/AzBase/KeyVaultBase';
 
-/** Fakes the shape returned by `list*().byPage({...})`: an async-iterable of pages. */
-function fakePagedResult<T>(pages: T[][]) {
+// Fakes a PagedAsyncIterableIterator's `.byPage()` shape: one page per array.
+function fakePages<T>(pages: T[][]) {
   return {
     byPage: () => ({
       [Symbol.asyncIterator]: async function* () {
@@ -14,6 +14,14 @@ function fakePagedResult<T>(pages: T[][]) {
       },
     }),
   };
+}
+
+// Stub a single method on an SDK client prototype. Constructing `KeyVaultBase`
+// builds real SecretClient/KeyClient/CertificateClient instances internally
+// (no DI seam) so we intercept their network-calling methods at the prototype
+// instead - no production source change required.
+function stub<T extends object, K extends keyof T>(proto: T, method: K) {
+  return sinon.stub(proto, method as any) as unknown as sinon.SinonStub;
 }
 
 /**
@@ -35,15 +43,420 @@ function loadKeyVaultBaseWithDryRun(): typeof KeyVaultBase {
 }
 
 describe('KeyVaultBase', () => {
+  let vault: KeyVaultBase;
+
+  beforeEach(() => {
+    vault = new KeyVaultBase('my-vault', '7.0');
+  });
+
   afterEach(() => sinon.restore());
 
-  describe('deleteSecret', () => {
-    it('makes no SDK call and emits no warning in dry-run', async () => {
-      const beginDeleteSecret = sinon.stub(
+  describe('recoverDeletedSecret (soft-delete recovery)', () => {
+    it('recovers and polls when a deleted secret is found', async () => {
+      stub(SecretClient.prototype, 'getDeletedSecret').resolves({
+        name: 'my-secret',
+      } as any);
+      const pollUntilDone = sinon.stub().resolves(undefined);
+      const recover = stub(
+        SecretClient.prototype,
+        'beginRecoverDeletedSecret',
+      ).resolves({ pollUntilDone } as any);
+
+      const result = await vault.recoverDeletedSecret('my-secret');
+
+      expect(recover.calledOnceWithExactly('my-secret')).to.be.true;
+      expect(pollUntilDone.calledOnce).to.be.true;
+      expect(result).to.be.true;
+    });
+
+    it('does nothing and returns false when no deleted secret exists', async () => {
+      stub(SecretClient.prototype, 'getDeletedSecret').rejects(
+        new Error('not found'),
+      );
+      const recover = stub(SecretClient.prototype, 'beginRecoverDeletedSecret');
+
+      const result = await vault.recoverDeletedSecret('missing-secret');
+
+      expect(recover.called).to.be.false;
+      expect(result).to.be.false;
+    });
+
+    it('getDeletedSecret resolves to undefined when the SDK call rejects', async () => {
+      stub(SecretClient.prototype, 'getDeletedSecret').rejects(
+        new Error('not found'),
+      );
+
+      expect(await vault.getDeletedSecret('my-secret')).to.be.undefined;
+    });
+  });
+
+  describe('recoverDeletedKey (soft-delete recovery)', () => {
+    it('recovers and polls when a deleted key is found', async () => {
+      stub(KeyClient.prototype, 'getDeletedKey').resolves({
+        name: 'my-key',
+      } as any);
+      const pollUntilDone = sinon.stub().resolves(undefined);
+      const recover = stub(KeyClient.prototype, 'beginRecoverDeletedKey').resolves(
+        { pollUntilDone } as any,
+      );
+
+      const result = await vault.recoverDeletedKey('my-key');
+
+      expect(recover.calledOnceWithExactly('my-key')).to.be.true;
+      expect(result).to.be.true;
+    });
+
+    it('does nothing and returns false when no deleted key exists', async () => {
+      stub(KeyClient.prototype, 'getDeletedKey').rejects(new Error('nope'));
+      const recover = stub(KeyClient.prototype, 'beginRecoverDeletedKey');
+
+      const result = await vault.recoverDeletedKey('missing-key');
+
+      expect(recover.called).to.be.false;
+      expect(result).to.be.false;
+    });
+
+    it('getDeletedKey resolves to undefined when the SDK call rejects', async () => {
+      stub(KeyClient.prototype, 'getDeletedKey').rejects(new Error('not found'));
+
+      expect(await vault.getDeletedKey('my-key')).to.be.undefined;
+    });
+  });
+
+  describe('recoverDeletedCert (soft-delete recovery)', () => {
+    it('recovers and polls when a deleted cert is found', async () => {
+      stub(CertificateClient.prototype, 'getDeletedCertificate').resolves({
+        name: 'my-cert',
+      } as any);
+      const pollUntilDone = sinon.stub().resolves(undefined);
+      const recover = stub(
+        CertificateClient.prototype,
+        'beginRecoverDeletedCertificate',
+      ).resolves({ pollUntilDone } as any);
+
+      const result = await vault.recoverDeletedCert('my-cert');
+
+      expect(recover.calledOnceWithExactly('my-cert')).to.be.true;
+      expect(result).to.be.true;
+    });
+
+    it('does nothing and returns false when no deleted cert exists', async () => {
+      stub(CertificateClient.prototype, 'getDeletedCertificate').rejects(
+        new Error('nope'),
+      );
+      const recover = stub(
+        CertificateClient.prototype,
+        'beginRecoverDeletedCertificate',
+      );
+
+      const result = await vault.recoverDeletedCert('missing-cert');
+
+      expect(recover.called).to.be.false;
+      expect(result).to.be.false;
+    });
+
+    it('getDeletedCert resolves to undefined when the SDK call rejects', async () => {
+      stub(CertificateClient.prototype, 'getDeletedCertificate').rejects(
+        new Error('not found'),
+      );
+
+      expect(await vault.getDeletedCert('my-cert')).to.be.undefined;
+    });
+  });
+
+  describe('setSecret', () => {
+    it('recovers any soft-deleted secret before writing the new value', async () => {
+      stub(SecretClient.prototype, 'getDeletedSecret').rejects(
+        new Error('not found'),
+      );
+      const setSecret = stub(SecretClient.prototype, 'setSecret').resolves({
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+
+      await vault.setSecret('my-secret', 'value', 'text/plain', {
+        env: 'test',
+      });
+
+      expect(
+        setSecret.calledOnceWithExactly('my-secret', 'value', {
+          enabled: true,
+          contentType: 'text/plain',
+          tags: { env: 'test' },
+        }),
+      ).to.be.true;
+    });
+  });
+
+  describe('createRsaKey', () => {
+    it('recovers any soft-deleted key then creates with sane defaults', async () => {
+      stub(KeyClient.prototype, 'getDeletedKey').rejects(new Error('nope'));
+      const createRsaKey = stub(KeyClient.prototype, 'createRsaKey').resolves({
+        name: 'my-key',
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+
+      await vault.createRsaKey('my-key');
+
+      const call = createRsaKey.getCall(0);
+      expect(call.args[0]).to.equal('my-key');
+      expect(call.args[1]).to.include({ enabled: true, keySize: 2048 });
+      expect(call.args[1].keyOps).to.deep.equal([
+        'decrypt',
+        'encrypt',
+        'sign',
+        'verify',
+        'wrapKey',
+        'unwrapKey',
+      ]);
+    });
+
+    it('honors a custom keySize and keyOps', async () => {
+      stub(KeyClient.prototype, 'getDeletedKey').rejects(new Error('nope'));
+      const createRsaKey = stub(KeyClient.prototype, 'createRsaKey').resolves({
+        name: 'my-key',
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+
+      await vault.createRsaKey('my-key', {
+        keySize: 4096,
+        keyOps: ['sign', 'verify'],
+      });
+
+      const call = createRsaKey.getCall(0);
+      expect(call.args[1]).to.include({ keySize: 4096 });
+      expect(call.args[1].keyOps).to.deep.equal(['sign', 'verify']);
+    });
+  });
+
+  describe('createSelfSignCert', () => {
+    it('does not attempt soft-delete recovery (left to DRK-1038 scope)', async () => {
+      const getDeletedCertificate = stub(
+        CertificateClient.prototype,
+        'getDeletedCertificate',
+      );
+      stub(CertificateClient.prototype, 'beginCreateCertificate').resolves(
+        {} as any,
+      );
+
+      await vault.createSelfSignCert('my-cert', { subject: 'CN=test' });
+
+      expect(getDeletedCertificate.called).to.be.false;
+    });
+
+    it('applies secure-by-default policy (4096-bit RSA, client auth EKU)', async () => {
+      const beginCreateCertificate = stub(
+        CertificateClient.prototype,
+        'beginCreateCertificate',
+      ).resolves({} as any);
+
+      await vault.createSelfSignCert('my-cert', { subject: 'CN=test' });
+
+      const call = beginCreateCertificate.getCall(0);
+      expect(call.args[0]).to.equal('my-cert');
+      expect(call.args[1]).to.include({ keySize: 4096, keyType: 'RSA' });
+      expect(call.args[1].enhancedKeyUsage).to.deep.equal([
+        '1.3.6.1.5.5.7.3.2',
+      ]);
+      expect(call.args[1].subjectAlternativeNames).to.deep.equal({
+        dnsNames: ['CN=test'],
+      });
+    });
+
+    it('switches the EKU to server auth when serverAuth is set', async () => {
+      const beginCreateCertificate = stub(
+        CertificateClient.prototype,
+        'beginCreateCertificate',
+      ).resolves({} as any);
+
+      await vault.createSelfSignCert('my-cert', {
+        subject: 'CN=test',
+        serverAuth: true,
+        keySize: 2048,
+        dnsNames: ['a.test', 'b.test'],
+      });
+
+      const call = beginCreateCertificate.getCall(0);
+      expect(call.args[1]).to.include({ keySize: 2048 });
+      expect(call.args[1].enhancedKeyUsage).to.deep.equal([
+        '1.3.6.1.5.5.7.3.1',
+      ]);
+      expect(call.args[1].subjectAlternativeNames).to.deep.equal({
+        dnsNames: ['a.test', 'b.test'],
+      });
+    });
+  });
+
+  describe('getSecret / getKey / getCert caching', () => {
+    it('caches a fetched secret and serves the second call from cache', async () => {
+      const getSecret = stub(SecretClient.prototype, 'getSecret').resolves({
+        name: 'my-secret',
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+
+      const first = await vault.getSecret('my-secret');
+      const second = await vault.getSecret('my-secret');
+
+      expect(first).to.deep.equal(second);
+      expect(getSecret.calledOnce).to.be.true;
+    });
+
+    it('returns undefined and does not cache when the secret client call fails', async () => {
+      stub(SecretClient.prototype, 'getSecret').rejects(new Error('boom'));
+      stub(console, 'error');
+
+      const result = await vault.getSecret('my-secret');
+
+      expect(result).to.be.undefined;
+    });
+
+    it('caches a fetched key and serves the second call from cache', async () => {
+      const getKey = stub(KeyClient.prototype, 'getKey').resolves({
+        name: 'my-key',
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+
+      await vault.getKey('my-key');
+      await vault.getKey('my-key');
+
+      expect(getKey.calledOnce).to.be.true;
+    });
+
+    it('returns undefined and does not cache when the key client call fails', async () => {
+      stub(KeyClient.prototype, 'getKey').rejects(new Error('boom'));
+      stub(console, 'error');
+
+      expect(await vault.getKey('my-key')).to.be.undefined;
+    });
+
+    it('caches a fetched cert and serves the second call from cache', async () => {
+      const getCertificate = stub(
+        CertificateClient.prototype,
+        'getCertificate',
+      ).resolves({
+        name: 'my-cert',
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+
+      await vault.getCert('my-cert');
+      await vault.getCert('my-cert');
+
+      expect(getCertificate.calledOnce).to.be.true;
+    });
+
+    it('returns undefined and does not cache when the cert client call fails', async () => {
+      stub(CertificateClient.prototype, 'getCertificate').rejects(
+        new Error('boom'),
+      );
+      stub(console, 'error');
+
+      expect(await vault.getCert('my-cert')).to.be.undefined;
+    });
+  });
+
+  describe('checkSecretExist / checkKeyExist / checkCertExist', () => {
+    it('reports a secret as existing when an enabled version is returned', async () => {
+      stub(SecretClient.prototype, 'listPropertiesOfSecretVersions').returns(
+        fakePages([[{ enabled: true, version: 'v1' }]]) as any,
+      );
+
+      expect(await vault.checkSecretExist('my-secret')).to.be.true;
+    });
+
+    it('reports a secret as not existing when versions listing fails', async () => {
+      stub(SecretClient.prototype, 'listPropertiesOfSecretVersions').throws(
+        new Error('boom'),
+      );
+
+      expect(await vault.checkSecretExist('my-secret')).to.be.false;
+    });
+
+    it('reports a key as existing when an enabled version is returned', async () => {
+      stub(KeyClient.prototype, 'listPropertiesOfKeyVersions').returns(
+        fakePages([[{ enabled: true, version: 'v1' }]]) as any,
+      );
+
+      expect(await vault.checkKeyExist('my-key')).to.be.true;
+    });
+
+    it('reports a key as not existing when no enabled version exists', async () => {
+      stub(KeyClient.prototype, 'listPropertiesOfKeyVersions').returns(
+        fakePages([[]]) as any,
+      );
+
+      expect(await vault.checkKeyExist('my-key')).to.be.false;
+    });
+
+    it('reports a cert as existing when an enabled version is returned', async () => {
+      stub(
+        CertificateClient.prototype,
+        'listPropertiesOfCertificateVersions',
+      ).returns(fakePages([[{ enabled: true, version: 'v1' }]]) as any);
+
+      expect(await vault.checkCertExist('my-cert')).to.be.true;
+    });
+
+    it('reports a cert as not existing when versions listing fails', async () => {
+      stub(
+        CertificateClient.prototype,
+        'listPropertiesOfCertificateVersions',
+      ).throws(new Error('boom'));
+
+      expect(await vault.checkCertExist('my-cert')).to.be.false;
+    });
+  });
+
+  describe('getOrCreateKey', () => {
+    it('returns the existing key without creating one', async () => {
+      stub(KeyClient.prototype, 'listPropertiesOfKeyVersions').returns(
+        fakePages([[{ enabled: true, version: 'v1' }]]) as any,
+      );
+      const getKey = stub(KeyClient.prototype, 'getKey').resolves({
+        name: 'my-key',
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+      const createRsaKey = stub(KeyClient.prototype, 'createRsaKey');
+
+      await vault.getOrCreateKey('my-key');
+
+      expect(createRsaKey.called).to.be.false;
+      expect(getKey.calledOnceWithExactly('my-key', { version: undefined })).to.be
+        .true;
+    });
+
+    it('creates the key when it does not exist', async () => {
+      stub(KeyClient.prototype, 'listPropertiesOfKeyVersions').returns(
+        fakePages([[]]) as any,
+      );
+      stub(KeyClient.prototype, 'getDeletedKey').rejects(new Error('nope'));
+      const createRsaKey = stub(KeyClient.prototype, 'createRsaKey').resolves({
+        name: 'my-key',
+        properties: { id: 'id', version: 'v1' },
+      } as any);
+
+      await vault.getOrCreateKey('my-key');
+
+      expect(createRsaKey.calledOnce).to.be.true;
+    });
+  });
+
+  describe('delete{Secret,Key,Cert}', () => {
+    it('deletes the secret by name', async () => {
+      const beginDeleteSecret = stub(
+        SecretClient.prototype,
+        'beginDeleteSecret',
+      ).resolves(undefined as any);
+
+      await vault.deleteSecret('my-secret');
+
+      expect(beginDeleteSecret.calledOnceWithExactly('my-secret')).to.be.true;
+    });
+
+    it('makes no SDK call and emits no warning in dry-run (deleteSecret)', async () => {
+      const beginDeleteSecret = stub(
         SecretClient.prototype,
         'beginDeleteSecret',
       );
-      const warnSpy = sinon.stub(console, 'warn');
+      const warnSpy = stub(console, 'warn');
 
       const DryRunKeyVaultBase = loadKeyVaultBaseWithDryRun();
       const kvb = new DryRunKeyVaultBase('vault-dry', '7.0');
@@ -54,27 +467,35 @@ describe('KeyVaultBase', () => {
       expect(warnSpy.called).to.equal(false);
     });
 
-    it('tolerates a failed delete: warns with name/message only and resolves', async () => {
-      sinon
-        .stub(SecretClient.prototype, 'beginDeleteSecret')
-        .rejects(new Error('secret is locked'));
-      const warnSpy = sinon.stub(console, 'warn');
+    it('tolerates a failed delete: warns with name/message only and resolves (deleteSecret)', async () => {
+      stub(SecretClient.prototype, 'beginDeleteSecret').rejects(
+        new Error('secret is locked'),
+      );
+      const warnSpy = stub(console, 'warn');
 
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.deleteSecret('my-secret');
+      await vault.deleteSecret('my-secret');
 
       expect(warnSpy.calledOnce).to.equal(true);
       const message = warnSpy.firstCall.args[0] as string;
-      expect(message).to.include('vault1');
+      expect(message).to.include('my-vault');
       expect(message).to.include('my-secret');
       expect(message).to.include('secret is locked');
     });
-  });
 
-  describe('deleteKey', () => {
-    it('makes no SDK call and emits no warning in dry-run', async () => {
-      const beginDeleteKey = sinon.stub(KeyClient.prototype, 'beginDeleteKey');
-      const warnSpy = sinon.stub(console, 'warn');
+    it('deletes the key by name', async () => {
+      const beginDeleteKey = stub(
+        KeyClient.prototype,
+        'beginDeleteKey',
+      ).resolves(undefined as any);
+
+      await vault.deleteKey('my-key');
+
+      expect(beginDeleteKey.calledOnceWithExactly('my-key')).to.be.true;
+    });
+
+    it('makes no SDK call and emits no warning in dry-run (deleteKey)', async () => {
+      const beginDeleteKey = stub(KeyClient.prototype, 'beginDeleteKey');
+      const warnSpy = stub(console, 'warn');
 
       const DryRunKeyVaultBase = loadKeyVaultBaseWithDryRun();
       const kvb = new DryRunKeyVaultBase('vault-dry', '7.0');
@@ -85,30 +506,38 @@ describe('KeyVaultBase', () => {
       expect(warnSpy.called).to.equal(false);
     });
 
-    it('tolerates a failed delete: warns with name/message only and resolves', async () => {
-      sinon
-        .stub(KeyClient.prototype, 'beginDeleteKey')
-        .rejects(new Error('key is locked'));
-      const warnSpy = sinon.stub(console, 'warn');
+    it('tolerates a failed delete: warns with name/message only and resolves (deleteKey)', async () => {
+      stub(KeyClient.prototype, 'beginDeleteKey').rejects(
+        new Error('key is locked'),
+      );
+      const warnSpy = stub(console, 'warn');
 
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.deleteKey('my-key');
+      await vault.deleteKey('my-key');
 
       expect(warnSpy.calledOnce).to.equal(true);
       const message = warnSpy.firstCall.args[0] as string;
-      expect(message).to.include('vault1');
+      expect(message).to.include('my-vault');
       expect(message).to.include('my-key');
       expect(message).to.include('key is locked');
     });
-  });
 
-  describe('deleteCert', () => {
-    it('makes no SDK call and emits no warning in dry-run', async () => {
-      const beginDeleteCertificate = sinon.stub(
+    it('deletes the cert by name', async () => {
+      const beginDeleteCertificate = stub(
+        CertificateClient.prototype,
+        'beginDeleteCertificate',
+      ).resolves(undefined as any);
+
+      await vault.deleteCert('my-cert');
+
+      expect(beginDeleteCertificate.calledOnceWithExactly('my-cert')).to.be.true;
+    });
+
+    it('makes no SDK call and emits no warning in dry-run (deleteCert)', async () => {
+      const beginDeleteCertificate = stub(
         CertificateClient.prototype,
         'beginDeleteCertificate',
       );
-      const warnSpy = sinon.stub(console, 'warn');
+      const warnSpy = stub(console, 'warn');
 
       const DryRunKeyVaultBase = loadKeyVaultBaseWithDryRun();
       const kvb = new DryRunKeyVaultBase('vault-dry', '7.0');
@@ -119,387 +548,95 @@ describe('KeyVaultBase', () => {
       expect(warnSpy.called).to.equal(false);
     });
 
-    it('tolerates a failed delete: warns with name/message only and resolves', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'beginDeleteCertificate')
-        .rejects(new Error('cert is locked'));
-      const warnSpy = sinon.stub(console, 'warn');
+    it('tolerates a failed delete: warns with name/message only and resolves (deleteCert)', async () => {
+      stub(CertificateClient.prototype, 'beginDeleteCertificate').rejects(
+        new Error('cert is locked'),
+      );
+      const warnSpy = stub(console, 'warn');
 
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.deleteCert('my-cert');
+      await vault.deleteCert('my-cert');
 
       expect(warnSpy.calledOnce).to.equal(true);
       const message = warnSpy.firstCall.args[0] as string;
-      expect(message).to.include('vault1');
+      expect(message).to.include('my-vault');
       expect(message).to.include('my-cert');
       expect(message).to.include('cert is locked');
     });
   });
 
-  describe('listSecrets / getSecretVersions / checkSecretExist', () => {
-    it('listSecrets flattens paged results', async () => {
-      sinon
-        .stub(SecretClient.prototype, 'listPropertiesOfSecrets')
-        .returns(fakePagedResult([[{ name: 'a' }], [{ name: 'b' }]]) as any);
+  describe('list{Secrets,Keys,Certs} and *Versions', () => {
+    it('lists secrets across pages', async () => {
+      stub(SecretClient.prototype, 'listPropertiesOfSecrets').returns(
+        fakePages([[{ name: 'a' }], [{ name: 'b' }]]) as any,
+      );
 
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      const list = await kvb.listSecrets();
+      const result = await vault.listSecrets();
 
-      expect(list.map((s) => s.name)).to.deep.equal(['a', 'b']);
+      expect(result).to.deep.equal([{ name: 'a' }, { name: 'b' }]);
     });
 
-    it('getSecretVersions filters by version when provided', async () => {
-      sinon.stub(SecretClient.prototype, 'listPropertiesOfSecretVersions').returns(
-        fakePagedResult([
+    it('lists keys across pages', async () => {
+      stub(KeyClient.prototype, 'listPropertiesOfKeys').returns(
+        fakePages([[{ name: 'a' }]]) as any,
+      );
+
+      expect(await vault.listKeys()).to.deep.equal([{ name: 'a' }]);
+    });
+
+    it('lists certs across pages', async () => {
+      stub(CertificateClient.prototype, 'listPropertiesOfCertificates').returns(
+        fakePages([[{ name: 'a' }]]) as any,
+      );
+
+      expect(await vault.listCerts()).to.deep.equal([{ name: 'a' }]);
+    });
+
+    it('filters secret versions to a specific version when requested', async () => {
+      stub(SecretClient.prototype, 'listPropertiesOfSecretVersions').returns(
+        fakePages([
           [
-            { name: 's', version: 'v1', enabled: true },
-            { name: 's', version: 'v2', enabled: true },
+            { version: 'v1', enabled: true },
+            { version: 'v2', enabled: true },
           ],
         ]) as any,
       );
 
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      const versions = await kvb.getSecretVersions('s', 'v2');
+      const result = await vault.getSecretVersions('my-secret', 'v2');
 
-      expect(versions).to.have.length(1);
-      expect(versions[0].version).to.equal('v2');
+      expect(result).to.deep.equal([{ version: 'v2', enabled: true }]);
     });
 
-    it('checkSecretExist returns true when an enabled version exists', async () => {
-      sinon
-        .stub(SecretClient.prototype, 'listPropertiesOfSecretVersions')
-        .returns(fakePagedResult([[{ name: 's', enabled: true }]]) as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.checkSecretExist('s')).to.equal(true);
-    });
-
-    it('checkSecretExist returns false when versions lookup fails', async () => {
-      sinon
-        .stub(SecretClient.prototype, 'listPropertiesOfSecretVersions')
-        .throws(new Error('not found'));
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.checkSecretExist('s')).to.equal(false);
-    });
-  });
-
-  describe('getDeletedSecret / recoverDeletedSecret', () => {
-    it('getDeletedSecret resolves to undefined when the SDK call rejects', async () => {
-      sinon
-        .stub(SecretClient.prototype, 'getDeletedSecret')
-        .rejects(new Error('not found'));
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.getDeletedSecret('s')).to.equal(undefined);
-    });
-
-    it('recoverDeletedSecret recovers when a deleted secret is found', async () => {
-      sinon
-        .stub(SecretClient.prototype, 'getDeletedSecret')
-        .resolves({ name: 's' } as any);
-      const pollUntilDone = sinon.stub().resolves();
-      sinon
-        .stub(SecretClient.prototype, 'beginRecoverDeletedSecret')
-        .resolves({ pollUntilDone } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.recoverDeletedSecret('s')).to.equal(true);
-      expect(pollUntilDone.calledOnce).to.equal(true);
-    });
-
-    it('recoverDeletedSecret returns false when nothing was deleted', async () => {
-      sinon.stub(SecretClient.prototype, 'getDeletedSecret').rejects();
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.recoverDeletedSecret('s')).to.equal(false);
-    });
-  });
-
-  describe('setSecret / getSecret', () => {
-    it('setSecret recovers a deleted secret then writes the new value', async () => {
-      sinon.stub(SecretClient.prototype, 'getDeletedSecret').rejects();
-      const setSecret = sinon
-        .stub(SecretClient.prototype, 'setSecret')
-        .resolves({ properties: { id: 'id1', version: 'v1' } } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.setSecret('s', 'value', 'text/plain', { env: 'test' });
-
-      expect(setSecret.calledOnce).to.equal(true);
-      expect(setSecret.firstCall.args[0]).to.equal('s');
-    });
-
-    it('getSecret caches the result and does not call the SDK twice', async () => {
-      const getSecret = sinon
-        .stub(SecretClient.prototype, 'getSecret')
-        .resolves({ name: 's', properties: { id: 'id1' } } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.getSecret('s');
-      await kvb.getSecret('s');
-
-      expect(getSecret.calledOnce).to.equal(true);
-    });
-
-    it('getSecret logs and returns undefined on SDK error, without caching', async () => {
-      sinon
-        .stub(SecretClient.prototype, 'getSecret')
-        .rejects(new Error('boom'));
-      sinon.stub(console, 'error');
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.getSecret('s')).to.equal(undefined);
-    });
-  });
-
-  describe('Key operations', () => {
-    it('getKeyVersions filters by version when provided', async () => {
-      sinon.stub(KeyClient.prototype, 'listPropertiesOfKeyVersions').returns(
-        fakePagedResult([
+    it('filters key versions to a specific version when requested', async () => {
+      stub(KeyClient.prototype, 'listPropertiesOfKeyVersions').returns(
+        fakePages([
           [
-            { name: 'k', version: 'v1', enabled: true },
-            { name: 'k', version: 'v2', enabled: true },
+            { version: 'v1', enabled: true },
+            { version: 'v2', enabled: true },
           ],
         ]) as any,
       );
 
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      const versions = await kvb.getKeyVersions('k', 'v1');
-      expect(versions).to.have.length(1);
+      const result = await vault.getKeyVersions('my-key', 'v1');
+
+      expect(result).to.deep.equal([{ version: 'v1', enabled: true }]);
     });
 
-    it('checkKeyExist returns false when no enabled version exists', async () => {
-      sinon
-        .stub(KeyClient.prototype, 'listPropertiesOfKeyVersions')
-        .returns(fakePagedResult([[]]) as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.checkKeyExist('k')).to.equal(false);
-    });
-
-    it('checkKeyExist returns true when an enabled version exists', async () => {
-      sinon
-        .stub(KeyClient.prototype, 'listPropertiesOfKeyVersions')
-        .returns(fakePagedResult([[{ name: 'k', enabled: true }]]) as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.checkKeyExist('k')).to.equal(true);
-    });
-
-    it('listKeys flattens paged results', async () => {
-      sinon
-        .stub(KeyClient.prototype, 'listPropertiesOfKeys')
-        .returns(fakePagedResult([[{ name: 'k1' }], [{ name: 'k2' }]]) as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect((await kvb.listKeys()).map((k) => k.name)).to.deep.equal(['k1', 'k2']);
-    });
-
-    it('getDeletedKey resolves to undefined when the SDK call rejects', async () => {
-      sinon.stub(KeyClient.prototype, 'getDeletedKey').rejects(new Error('not found'));
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.getDeletedKey('k')).to.equal(undefined);
-    });
-
-    it('recoverDeletedKey recovers when a deleted key is found', async () => {
-      sinon.stub(KeyClient.prototype, 'getDeletedKey').resolves({ name: 'k' } as any);
-      const pollUntilDone = sinon.stub().resolves();
-      sinon
-        .stub(KeyClient.prototype, 'beginRecoverDeletedKey')
-        .resolves({ pollUntilDone } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.recoverDeletedKey('k')).to.equal(true);
-      expect(pollUntilDone.calledOnce).to.equal(true);
-    });
-
-    it('recoverDeletedKey returns false when nothing was deleted', async () => {
-      sinon.stub(KeyClient.prototype, 'getDeletedKey').rejects();
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.recoverDeletedKey('k')).to.equal(false);
-    });
-
-    it('createRsaKey recovers the deleted key then creates with defaults', async () => {
-      sinon.stub(KeyClient.prototype, 'getDeletedKey').rejects();
-      const createRsaKey = sinon
-        .stub(KeyClient.prototype, 'createRsaKey')
-        .resolves({ name: 'k' } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.createRsaKey('k');
-
-      expect(createRsaKey.calledOnce).to.equal(true);
-      expect(createRsaKey.firstCall.args[1].keySize).to.equal(2048);
-    });
-
-    it('getKey caches the result', async () => {
-      const getKey = sinon
-        .stub(KeyClient.prototype, 'getKey')
-        .resolves({ name: 'k', properties: { id: 'id1' } } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.getKey('k');
-      await kvb.getKey('k');
-
-      expect(getKey.calledOnce).to.equal(true);
-    });
-
-    it('getKey logs and returns undefined on SDK error', async () => {
-      sinon.stub(KeyClient.prototype, 'getKey').rejects(new Error('boom'));
-      sinon.stub(console, 'error');
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.getKey('k')).to.equal(undefined);
-    });
-
-    it('getOrCreateKey creates when the key does not exist, reads when it does', async () => {
-      sinon
-        .stub(KeyClient.prototype, 'listPropertiesOfKeyVersions')
-        .returns(fakePagedResult([[]]) as any);
-      sinon.stub(KeyClient.prototype, 'getDeletedKey').rejects();
-      const createRsaKey = sinon
-        .stub(KeyClient.prototype, 'createRsaKey')
-        .resolves({ name: 'k' } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.getOrCreateKey('k');
-
-      expect(createRsaKey.calledOnce).to.equal(true);
-    });
-
-    it('getOrCreateKey reads the existing key instead of creating one', async () => {
-      sinon
-        .stub(KeyClient.prototype, 'listPropertiesOfKeyVersions')
-        .returns(fakePagedResult([[{ name: 'k', enabled: true }]]) as any);
-      const getKey = sinon
-        .stub(KeyClient.prototype, 'getKey')
-        .resolves({ name: 'k', properties: { id: 'id1' } } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.getOrCreateKey('k');
-
-      expect(getKey.calledOnce).to.equal(true);
-    });
-  });
-
-  describe('Cert operations', () => {
-    it('getCertVersions filters by version when provided', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'listPropertiesOfCertificateVersions')
-        .returns(
-          fakePagedResult([
-            [
-              { name: 'c', version: 'v1', enabled: true },
-              { name: 'c', version: 'v2', enabled: true },
-            ],
-          ]) as any,
-        );
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      const versions = await kvb.getCertVersions('c', 'v1');
-      expect(versions).to.have.length(1);
-    });
-
-    it('listCerts flattens paged results', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'listPropertiesOfCertificates')
-        .returns(fakePagedResult([[{ name: 'c1' }], [{ name: 'c2' }]]) as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect((await kvb.listCerts()).map((c) => c.name)).to.deep.equal(['c1', 'c2']);
-    });
-
-    it('checkCertExist returns false when the versions lookup fails', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'listPropertiesOfCertificateVersions')
-        .throws(new Error('not found'));
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.checkCertExist('c')).to.equal(false);
-    });
-
-    it('getDeletedCert resolves to undefined when the SDK call rejects', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'getDeletedCertificate')
-        .rejects(new Error('not found'));
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.getDeletedCert('c')).to.equal(undefined);
-    });
-
-    it('recoverDeletedCert recovers when a deleted cert is found', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'getDeletedCertificate')
-        .resolves({ name: 'c' } as any);
-      const pollUntilDone = sinon.stub().resolves();
-      sinon
-        .stub(CertificateClient.prototype, 'beginRecoverDeletedCertificate')
-        .resolves({ pollUntilDone } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.recoverDeletedCert('c')).to.equal(true);
-      expect(pollUntilDone.calledOnce).to.equal(true);
-    });
-
-    it('recoverDeletedCert returns false when nothing was deleted', async () => {
-      sinon.stub(CertificateClient.prototype, 'getDeletedCertificate').rejects();
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.recoverDeletedCert('c')).to.equal(false);
-    });
-
-    it('checkCertExist returns true when an enabled version exists', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'listPropertiesOfCertificateVersions')
-        .returns(fakePagedResult([[{ name: 'c', enabled: true }]]) as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.checkCertExist('c')).to.equal(true);
-    });
-
-    it('getCert caches the result', async () => {
-      const getCertificate = sinon
-        .stub(CertificateClient.prototype, 'getCertificate')
-        .resolves({ name: 'c', properties: { id: 'id1' } } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.getCert('c');
-      await kvb.getCert('c');
-
-      expect(getCertificate.calledOnce).to.equal(true);
-    });
-
-    it('getCert logs and returns undefined on SDK error', async () => {
-      sinon
-        .stub(CertificateClient.prototype, 'getCertificate')
-        .rejects(new Error('boom'));
-      sinon.stub(console, 'error');
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      expect(await kvb.getCert('c')).to.equal(undefined);
-    });
-
-    it('createSelfSignCert issues a client-auth EKU by default and server-auth when requested', async () => {
-      const beginCreateCertificate = sinon
-        .stub(CertificateClient.prototype, 'beginCreateCertificate')
-        .resolves({ pollUntilDone: sinon.stub().resolves() } as any);
-
-      const kvb = new KeyVaultBase('vault1', '7.0');
-      await kvb.createSelfSignCert('c', { subject: 'test.local' });
-      await kvb.createSelfSignCert('c', {
-        subject: 'test.local',
-        serverAuth: true,
-      });
-
-      expect(beginCreateCertificate.firstCall.args[1].enhancedKeyUsage).to.deep.equal(
-        ['1.3.6.1.5.5.7.3.2'],
+    it('filters cert versions to a specific version when requested', async () => {
+      stub(
+        CertificateClient.prototype,
+        'listPropertiesOfCertificateVersions',
+      ).returns(
+        fakePages([
+          [
+            { version: 'v1', enabled: true },
+            { version: 'v2', enabled: true },
+          ],
+        ]) as any,
       );
-      expect(beginCreateCertificate.secondCall.args[1].enhancedKeyUsage).to.deep.equal(
-        ['1.3.6.1.5.5.7.3.1'],
-      );
+
+      const result = await vault.getCertVersions('my-cert', 'v2');
+
+      expect(result).to.deep.equal([{ version: 'v2', enabled: true }]);
     });
   });
 });

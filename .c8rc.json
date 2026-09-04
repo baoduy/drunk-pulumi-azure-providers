@@ -1,0 +1,14 @@
+{
+  "extension": [".ts"],
+  "include": [
+    "src/VaultSecret.ts",
+    "src/VaultKey.ts",
+    "src/VaultCert.ts",
+    "src/AzBase/KeyVaultBase.ts"
+  ],
+  "reporter": ["text", "text-summary"],
+  "all": false,
+  "check-coverage": true,
+  "lines": 80,
+  "statements": 80
+}
