@@ -142,6 +142,7 @@ describe('VaultSecretResourceProvider', () => {
       expect(message).to.include('old-name');
       expect(message).to.include('vault1');
       expect(message).to.include('old secret locked');
+      expect(message).to.not.include('new-value');
     });
   });
 });

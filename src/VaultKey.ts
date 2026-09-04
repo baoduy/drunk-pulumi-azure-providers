@@ -19,6 +19,7 @@ interface VaultKeyOutputs {
   key: KeyArgs;
 }
 
+/** @internal */
 export class VaultKeyResourceProvider
   implements BaseProvider<VaultKeyInputs, VaultKeyOutputs>
 {

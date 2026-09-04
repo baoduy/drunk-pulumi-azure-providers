@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { execSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 // Regression guard for DRK-1038/1049: a zero-arg `.catch()` swallows nothing and
@@ -8,18 +8,20 @@ import path from 'node:path';
 // handler that tolerates+warns, or no `.catch()` at all so the rejection propagates.
 describe('src/ regression: no zero-arg .catch()', () => {
   it('has no bare .catch() call sites left in src/', () => {
-    const repoRoot = path.resolve(__dirname, '..');
-    let output = '';
-    try {
-      // grep exits 1 (no matches) on success for this check; that's the passing case.
-      output = execSync('grep -rn "\\.catch()" src/', {
-        cwd: repoRoot,
-        encoding: 'utf8',
+    const srcRoot = path.resolve(__dirname, '..', 'src');
+    const hits: string[] = [];
+
+    for (const entry of fs.readdirSync(srcRoot, { recursive: true }) as string[]) {
+      if (!entry.endsWith('.ts')) continue;
+      const filePath = path.join(srcRoot, entry);
+      if (!fs.statSync(filePath).isFile()) continue;
+
+      const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+      lines.forEach((line, i) => {
+        if (line.includes('.catch()')) hits.push(`${entry}:${i + 1}:${line}`);
       });
-    } catch (err: any) {
-      if (err.status === 1) return; // no matches found — guard holds
-      throw err;
     }
-    expect.fail(`found zero-arg .catch() call site(s):\n${output}`);
+
+    expect(hits, `found zero-arg .catch() call site(s):\n${hits.join('\n')}`).to.have.lengthOf(0);
   });
 });

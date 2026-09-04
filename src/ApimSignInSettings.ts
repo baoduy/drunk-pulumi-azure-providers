@@ -15,6 +15,7 @@ interface ApimSignInSettingsInputs extends Omit<ResourceArgs, 'resourceName'> {
 
 type ApimSignInSettingsOutputs = ApimSignInSettingsInputs
 
+/** @internal */
 export class ApimSignInSettingsResourceProvider
   implements BaseProvider<ApimSignInSettingsInputs, ApimSignInSettingsOutputs>
 {
