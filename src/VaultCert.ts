@@ -18,7 +18,7 @@ interface VaultCertOutputs {
   version: string;
 }
 
-class VaultCertResourceProvider
+export class VaultCertResourceProvider
   implements BaseProvider<VaultCertInputs, VaultCertOutputs>
 {
   constructor(private readonly name: string) {}
