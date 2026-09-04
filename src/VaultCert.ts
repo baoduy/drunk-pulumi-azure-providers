@@ -65,7 +65,7 @@ class VaultCertResourceProvider
 
   async delete(id: string, props: VaultCertOutputs): Promise<void> {
     const client = getKeyVaultBase(props.vaultName);
-    return client.deleteCert(props.name).catch();
+    return client.deleteCert(props.name);
   }
 }
 

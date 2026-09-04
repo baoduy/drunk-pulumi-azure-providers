@@ -56,11 +56,13 @@ class ApimSignInSettingsResourceProvider
       props.subscriptionId,
     );
 
-    await client.signInSettings
-      .createOrUpdate(props.resourceGroupName, props.serviceName, {
+    await client.signInSettings.createOrUpdate(
+      props.resourceGroupName,
+      props.serviceName,
+      {
         enabled: true,
-      })
-      .catch();
+      },
+    );
   }
 }
 

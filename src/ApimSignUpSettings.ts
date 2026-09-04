@@ -60,12 +60,14 @@ class ApimSignUpSettingsResourceProvider
       props.subscriptionId,
     );
 
-    await client.signUpSettings
-      .createOrUpdate(props.resourceGroupName, props.serviceName, {
+    await client.signUpSettings.createOrUpdate(
+      props.resourceGroupName,
+      props.serviceName,
+      {
         enabled: true,
         termsOfService: { consentRequired: true, enabled: true },
-      })
-      .catch();
+      },
+    );
   }
 }
 

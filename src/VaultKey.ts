@@ -75,7 +75,7 @@ class VaultKeyResourceProvider
       return;
     }
     const client = getKeyVaultBase(props.vaultName);
-    return client.deleteKey(props.name).catch();
+    return client.deleteKey(props.name);
   }
 }
 

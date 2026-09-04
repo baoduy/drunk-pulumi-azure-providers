@@ -422,19 +422,31 @@ export class KeyVaultBase {
   /** Delete Secret */
   public async deleteSecret(name: string) {
     if (isDryRun) return undefined;
-    await this.secretClient.beginDeleteSecret(name).catch();
+    await this.secretClient.beginDeleteSecret(name).catch((err) => {
+      console.warn(
+        `${this.keyVaultName} - failed to delete secret '${name}': ${err.message || err}`,
+      );
+    });
   }
 
   /** Delete Key */
   public async deleteKey(name: string) {
     if (isDryRun) return undefined;
-    await this.keyClient.beginDeleteKey(name).catch();
+    await this.keyClient.beginDeleteKey(name).catch((err) => {
+      console.warn(
+        `${this.keyVaultName} - failed to delete key '${name}': ${err.message || err}`,
+      );
+    });
   }
 
   /** Delete Cert */
   public async deleteCert(name: string) {
     if (isDryRun) return undefined;
-    await this.certClient.beginDeleteCertificate(name).catch();
+    await this.certClient.beginDeleteCertificate(name).catch((err) => {
+      console.warn(
+        `${this.keyVaultName} - failed to delete certificate '${name}': ${err.message || err}`,
+      );
+    });
   }
 }
 
