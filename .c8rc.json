@@ -8,5 +8,7 @@
   ],
   "reporter": ["text", "text-summary"],
   "all": false,
-  "check-coverage": false
+  "check-coverage": true,
+  "lines": 80,
+  "statements": 80
 }

@@ -49,7 +49,7 @@ describe('VaultSecretResourceProvider', () => {
       });
 
       expect(
-        setSecretStub.calledOnceWith('my-secret', 'shh', 'text/plain', {
+        setSecretStub.calledOnceWithExactly('my-secret', 'shh', 'text/plain', {
           env: 'test',
         }),
       ).to.be.true;
@@ -78,7 +78,7 @@ describe('VaultSecretResourceProvider', () => {
         vaultName: 'my-vault',
       });
 
-      expect(getSecretStub.calledOnceWith('my-secret')).to.be.true;
+      expect(getSecretStub.calledOnceWithExactly('my-secret')).to.be.true;
       expect(result.id).to.equal('secret-id-2');
       expect(result.outs.version).to.equal('v2');
     });
@@ -129,14 +129,14 @@ describe('VaultSecretResourceProvider', () => {
       });
 
       expect(
-        setSecretStub.calledOnceWith(
+        setSecretStub.calledOnceWithExactly(
           'renamed-secret',
           'v',
           undefined,
           undefined,
         ),
       ).to.be.true;
-      expect(deleteSecretStub.calledOnceWith('my-secret')).to.be.true;
+      expect(deleteSecretStub.calledOnceWithExactly('my-secret')).to.be.true;
       expect(setSecretStub.calledBefore(deleteSecretStub)).to.be.true;
     });
 
@@ -152,7 +152,7 @@ describe('VaultSecretResourceProvider', () => {
         vaultName: 'new-vault',
       });
 
-      expect(deleteSecretStub.calledOnceWith('my-secret')).to.be.true;
+      expect(deleteSecretStub.calledOnceWithExactly('my-secret')).to.be.true;
     });
 
     it('does not delete the old secret when name and vault are unchanged', async () => {
@@ -181,7 +181,7 @@ describe('VaultSecretResourceProvider', () => {
         vaultUrl: 'u',
       });
 
-      expect(deleteSecretStub.calledOnceWith('my-secret')).to.be.true;
+      expect(deleteSecretStub.calledOnceWithExactly('my-secret')).to.be.true;
     });
 
     it('does nothing when props has no vaultName', async () => {

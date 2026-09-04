@@ -20,6 +20,7 @@ interface VaultSecretOutputs extends Omit<VaultSecretInputs, 'value'> {
   vaultUrl: string;
 }
 
+/** @internal */
 export class VaultSecretResourceProvider
   implements BaseProvider<VaultSecretInputs, VaultSecretOutputs>
 {

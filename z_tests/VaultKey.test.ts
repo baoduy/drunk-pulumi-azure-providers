@@ -40,8 +40,8 @@ describe('VaultKeyResourceProvider', () => {
         key: keyArgs,
       });
 
-      expect(checkKeyExistStub.calledOnceWith('my-key')).to.be.true;
-      expect(createRsaKeyStub.calledOnceWith('my-key', keyArgs)).to.be.true;
+      expect(checkKeyExistStub.calledOnceWithExactly('my-key')).to.be.true;
+      expect(createRsaKeyStub.calledOnceWithExactly('my-key', keyArgs)).to.be.true;
       expect(getKeyStub.called).to.be.false;
       expect(result.id).to.equal('key-id');
       expect(result.outs).to.include({
@@ -67,7 +67,7 @@ describe('VaultKeyResourceProvider', () => {
       });
 
       expect(createRsaKeyStub.called).to.be.false;
-      expect(getKeyStub.calledOnceWith('my-key')).to.be.true;
+      expect(getKeyStub.calledOnceWithExactly('my-key')).to.be.true;
       expect(result.outs.version).to.equal('v1');
     });
 
@@ -84,7 +84,7 @@ describe('VaultKeyResourceProvider', () => {
       );
 
       expect(checkKeyExistStub.called).to.be.false;
-      expect(createRsaKeyStub.calledOnceWith('my-key', keyArgs)).to.be.true;
+      expect(createRsaKeyStub.calledOnceWithExactly('my-key', keyArgs)).to.be.true;
     });
 
     it('falls back to waitAndRetry(getKey) when neither path returns a key', async () => {
@@ -102,7 +102,7 @@ describe('VaultKeyResourceProvider', () => {
         key: keyArgs,
       });
 
-      expect(getKeyStub.calledOnceWith('my-key')).to.be.true;
+      expect(getKeyStub.calledOnceWithExactly('my-key')).to.be.true;
       expect(result.outs.version).to.equal('v3');
     });
   });
@@ -130,7 +130,7 @@ describe('VaultKeyResourceProvider', () => {
 
       expect(checkKeyExistStub.called).to.be.false;
       expect(
-        createRsaKeyStub.calledOnceWith('my-key', { keySize: 4096 }),
+        createRsaKeyStub.calledOnceWithExactly('my-key', { keySize: 4096 }),
       ).to.be.true;
     });
 
@@ -172,7 +172,7 @@ describe('VaultKeyResourceProvider', () => {
         key: keyArgs,
       });
 
-      expect(deleteKeyStub.calledOnceWith('my-key')).to.be.true;
+      expect(deleteKeyStub.calledOnceWithExactly('my-key')).to.be.true;
     });
 
     it('does nothing when props has no vaultName', async () => {

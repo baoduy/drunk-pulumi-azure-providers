@@ -46,7 +46,7 @@ describe('KeyVaultBase', () => {
 
       const result = await vault.recoverDeletedSecret('my-secret');
 
-      expect(recover.calledOnceWith('my-secret')).to.be.true;
+      expect(recover.calledOnceWithExactly('my-secret')).to.be.true;
       expect(pollUntilDone.calledOnce).to.be.true;
       expect(result).to.be.true;
     });
@@ -76,7 +76,7 @@ describe('KeyVaultBase', () => {
 
       const result = await vault.recoverDeletedKey('my-key');
 
-      expect(recover.calledOnceWith('my-key')).to.be.true;
+      expect(recover.calledOnceWithExactly('my-key')).to.be.true;
       expect(result).to.be.true;
     });
 
@@ -104,7 +104,7 @@ describe('KeyVaultBase', () => {
 
       const result = await vault.recoverDeletedCert('my-cert');
 
-      expect(recover.calledOnceWith('my-cert')).to.be.true;
+      expect(recover.calledOnceWithExactly('my-cert')).to.be.true;
       expect(result).to.be.true;
     });
 
@@ -138,7 +138,7 @@ describe('KeyVaultBase', () => {
       });
 
       expect(
-        setSecret.calledOnceWith('my-secret', 'value', {
+        setSecret.calledOnceWithExactly('my-secret', 'value', {
           enabled: true,
           contentType: 'text/plain',
           tags: { env: 'test' },
@@ -345,7 +345,7 @@ describe('KeyVaultBase', () => {
       await vault.getOrCreateKey('my-key');
 
       expect(createRsaKey.called).to.be.false;
-      expect(getKey.calledOnceWith('my-key', { version: undefined })).to.be
+      expect(getKey.calledOnceWithExactly('my-key', { version: undefined })).to.be
         .true;
     });
 
@@ -374,7 +374,7 @@ describe('KeyVaultBase', () => {
 
       await vault.deleteSecret('my-secret');
 
-      expect(beginDeleteSecret.calledOnceWith('my-secret')).to.be.true;
+      expect(beginDeleteSecret.calledOnceWithExactly('my-secret')).to.be.true;
     });
 
     it('deletes the key by name', async () => {
@@ -385,7 +385,7 @@ describe('KeyVaultBase', () => {
 
       await vault.deleteKey('my-key');
 
-      expect(beginDeleteKey.calledOnceWith('my-key')).to.be.true;
+      expect(beginDeleteKey.calledOnceWithExactly('my-key')).to.be.true;
     });
 
     it('deletes the cert by name', async () => {
@@ -396,7 +396,7 @@ describe('KeyVaultBase', () => {
 
       await vault.deleteCert('my-cert');
 
-      expect(beginDeleteCertificate.calledOnceWith('my-cert')).to.be.true;
+      expect(beginDeleteCertificate.calledOnceWithExactly('my-cert')).to.be.true;
     });
   });
 

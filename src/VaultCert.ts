@@ -18,6 +18,7 @@ interface VaultCertOutputs {
   version: string;
 }
 
+/** @internal */
 export class VaultCertResourceProvider
   implements BaseProvider<VaultCertInputs, VaultCertOutputs>
 {

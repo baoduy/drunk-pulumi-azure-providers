@@ -45,7 +45,7 @@ describe('VaultCertResourceProvider', () => {
       });
 
       expect(
-        createSelfSignCertStub.calledOnceWith('my-cert', certArgs),
+        createSelfSignCertStub.calledOnceWithExactly('my-cert', certArgs),
       ).to.be.true;
       expect(pollUntilDone.calledOnce).to.be.true;
       expect(getCertStub.called).to.be.false;
@@ -73,7 +73,7 @@ describe('VaultCertResourceProvider', () => {
       });
 
       expect(createSelfSignCertStub.called).to.be.false;
-      expect(getCertStub.calledOnceWith('my-cert')).to.be.true;
+      expect(getCertStub.calledOnceWithExactly('my-cert')).to.be.true;
       expect(result.outs.version).to.equal('v1');
     });
 
@@ -93,7 +93,7 @@ describe('VaultCertResourceProvider', () => {
         cert: certArgs,
       });
 
-      expect(getCertStub.calledOnceWith('my-cert')).to.be.true;
+      expect(getCertStub.calledOnceWithExactly('my-cert')).to.be.true;
       expect(result.outs.version).to.equal('v2');
     });
   });
@@ -121,7 +121,7 @@ describe('VaultCertResourceProvider', () => {
       );
 
       expect(
-        createSelfSignCertStub.calledOnceWith('my-cert', certArgs),
+        createSelfSignCertStub.calledOnceWithExactly('my-cert', certArgs),
       ).to.be.true;
       expect(result.outs.version).to.equal('v2');
     });
@@ -139,7 +139,7 @@ describe('VaultCertResourceProvider', () => {
         version: 'v1',
       });
 
-      expect(deleteCertStub.calledOnceWith('my-cert')).to.be.true;
+      expect(deleteCertStub.calledOnceWithExactly('my-cert')).to.be.true;
     });
   });
 });
