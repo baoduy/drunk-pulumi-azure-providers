@@ -20,7 +20,8 @@ interface VaultSecretOutputs extends Omit<VaultSecretInputs, 'value'> {
   vaultUrl: string;
 }
 
-class VaultSecretResourceProvider
+/** @internal */
+export class VaultSecretResourceProvider
   implements BaseProvider<VaultSecretInputs, VaultSecretOutputs>
 {
   constructor(private name: string) {}
@@ -65,7 +66,11 @@ class VaultSecretResourceProvider
     const rs = await this.create(news);
     //Delete the old Secret
     if (olds.name !== news.name || olds.vaultName !== news.vaultName)
-      await this.delete(id, olds).catch();
+      await this.delete(id, olds).catch((err) => {
+        console.warn(
+          `${this.name} - failed to delete superseded secret '${olds.name}' in vault '${olds.vaultName}': ${err.message || err}`,
+        );
+      });
 
     return rs;
   }
@@ -76,7 +81,7 @@ class VaultSecretResourceProvider
       return;
     }
     const client = getKeyVaultBase(props.vaultName);
-    return await client.deleteSecret(props.name).catch();
+    return await client.deleteSecret(props.name);
   }
 }
 

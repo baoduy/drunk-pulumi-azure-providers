@@ -19,7 +19,8 @@ interface VaultKeyOutputs {
   key: KeyArgs;
 }
 
-class VaultKeyResourceProvider
+/** @internal */
+export class VaultKeyResourceProvider
   implements BaseProvider<VaultKeyInputs, VaultKeyOutputs>
 {
   constructor(private name: string) {}
@@ -75,7 +76,7 @@ class VaultKeyResourceProvider
       return;
     }
     const client = getKeyVaultBase(props.vaultName);
-    return client.deleteKey(props.name).catch();
+    return client.deleteKey(props.name);
   }
 }
 
