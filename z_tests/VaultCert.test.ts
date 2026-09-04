@@ -141,5 +141,24 @@ describe('VaultCertResourceProvider', () => {
 
       expect(deleteCertStub.calledOnceWithExactly('my-cert')).to.be.true;
     });
+
+    it('propagates a failed delete to the caller', async () => {
+      deleteCertStub.rejects(new Error('vault unreachable'));
+
+      let threw = false;
+      try {
+        await provider().delete('id1', {
+          id: 'id1',
+          name: 'cert1',
+          vaultName: 'vault1',
+          vaultUrl: 'https://vault1.vault.azure.net',
+          version: 'v1',
+        });
+      } catch (err: any) {
+        threw = true;
+        expect(err.message).to.equal('vault unreachable');
+      }
+      expect(threw).to.equal(true);
+    });
   });
 });

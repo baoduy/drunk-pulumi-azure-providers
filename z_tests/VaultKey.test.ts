@@ -175,10 +175,33 @@ describe('VaultKeyResourceProvider', () => {
       expect(deleteKeyStub.calledOnceWithExactly('my-key')).to.be.true;
     });
 
-    it('does nothing when props has no vaultName', async () => {
+    it('guards against a missing vaultName and makes no SDK call', async () => {
+      const errorSpy = sinon.stub(console, 'error');
+
       await provider().delete('id', { name: 'my-key' } as any);
 
       expect(deleteKeyStub.called).to.be.false;
+      expect(errorSpy.calledOnce).to.be.true;
+    });
+
+    it('propagates a failed delete to the caller', async () => {
+      deleteKeyStub.rejects(new Error('vault unreachable'));
+
+      let threw = false;
+      try {
+        await provider().delete('id1', {
+          id: 'id1',
+          name: 'key1',
+          vaultName: 'vault1',
+          vaultUrl: 'https://vault1.vault.azure.net',
+          version: 'v1',
+          key: {},
+        });
+      } catch (err: any) {
+        threw = true;
+        expect(err.message).to.equal('vault unreachable');
+      }
+      expect(threw).to.equal(true);
     });
   });
 });

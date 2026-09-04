@@ -3,17 +3,12 @@ import sinon from 'sinon';
 import { KeyVaultBase } from '../src/AzBase/KeyVaultBase';
 import { VaultSecretResourceProvider } from '../src/VaultSecret';
 
-// NOTE (DRK-1046-1 / DRK-1038 interplay): update()/delete() route the old-secret
-// deletion through `client.deleteSecret(name).catch()` (a zero-arg .catch()).
-// DRK-1038 is an open cycle that changes that exact swallow-vs-propagate
-// semantic in this file. We assert WHICH client methods are called, with WHAT
-// arguments, in WHAT order, and WHAT the provider returns on the happy path -
-// never whether a rejected deleteSecret propagates or is swallowed - so this
-// suite holds both before and after DRK-1038 lands.
-//
-// `getKeyVaultBase` is stubbed indirectly: KeyVaultBase's own methods are
+// NOTE: `getKeyVaultBase` is stubbed indirectly: KeyVaultBase's own methods are
 // stubbed on its prototype so `getKeyVaultBase(vaultName)` still builds a real
 // (but network-inert) KeyVaultBase instance - no DI refactor of src/ needed.
+// This suite asserts WHICH client methods are called, with WHAT arguments, in
+// WHAT order, and WHAT the provider returns/throws - including the DRK-1038
+// propagate-vs-warn delete semantics.
 
 describe('VaultSecretResourceProvider', () => {
   let setSecretStub: sinon.SinonStub;
@@ -116,6 +111,21 @@ describe('VaultSecretResourceProvider', () => {
       expect(setSecretStub.called).to.be.false;
     });
 
+    it('skips create/delete entirely when ignoreChange is set on both sides', async () => {
+      const olds2 = { ...olds, ignoreChange: true };
+
+      const result = await provider().update('id', olds2, {
+        name: 'my-secret',
+        value: 'new-value',
+        vaultName: 'my-vault',
+        ignoreChange: true,
+      });
+
+      expect(result.outs).to.deep.equal(olds2);
+      expect(setSecretStub.called).to.be.false;
+      expect(deleteSecretStub.called).to.be.false;
+    });
+
     it('creates the new secret then deletes the old one when the name changes', async () => {
       setSecretStub.resolves({
         properties: { id: 'new-id', version: 'v2', vaultUrl: 'u2' },
@@ -168,6 +178,38 @@ describe('VaultSecretResourceProvider', () => {
 
       expect(deleteSecretStub.called).to.be.false;
     });
+
+    it('tolerates the superseded-secret delete failing: warns and still returns the new outputs', async () => {
+      setSecretStub.resolves({
+        properties: {
+          id: 'new-id',
+          version: 'v2',
+          vaultUrl: 'https://vault1.vault.azure.net',
+        },
+      });
+      deleteSecretStub.rejects(new Error('old secret locked'));
+      const warnSpy = sinon.stub(console, 'warn');
+
+      const result = await provider().update(
+        'id1',
+        {
+          name: 'old-name',
+          vaultName: 'vault1',
+          version: 'v1',
+          vaultUrl: 'https://vault1.vault.azure.net',
+        },
+        { name: 'new-name', value: 'new-value', vaultName: 'vault1' },
+      );
+
+      expect(result.outs.version).to.equal('v2');
+      expect(result.outs.name).to.equal('new-name');
+      expect(warnSpy.calledOnce).to.equal(true);
+      const message = warnSpy.firstCall.args[0] as string;
+      expect(message).to.include('old-name');
+      expect(message).to.include('vault1');
+      expect(message).to.include('old secret locked');
+      expect(message).to.not.include('new-value');
+    });
   });
 
   describe('delete', () => {
@@ -184,10 +226,31 @@ describe('VaultSecretResourceProvider', () => {
       expect(deleteSecretStub.calledOnceWithExactly('my-secret')).to.be.true;
     });
 
-    it('does nothing when props has no vaultName', async () => {
+    it('guards against a missing vaultName and makes no SDK call', async () => {
+      const errorSpy = sinon.stub(console, 'error');
+
       await provider().delete('id', { name: 'my-secret' } as any);
 
       expect(deleteSecretStub.called).to.be.false;
+      expect(errorSpy.calledOnce).to.be.true;
+    });
+
+    it('propagates a failed delete to the caller', async () => {
+      deleteSecretStub.rejects(new Error('vault unreachable'));
+
+      let threw = false;
+      try {
+        await provider().delete('id1', {
+          name: 'secret1',
+          vaultName: 'vault1',
+          version: 'v1',
+          vaultUrl: 'https://vault1.vault.azure.net',
+        });
+      } catch (err: any) {
+        threw = true;
+        expect(err.message).to.equal('vault unreachable');
+      }
+      expect(threw).to.equal(true);
     });
   });
 });

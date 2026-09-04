@@ -18,7 +18,8 @@ interface ApimSignUpSettingsInputs extends Omit<ResourceArgs, 'resourceName'> {
 
 type ApimSignUpSettingsOutputs = ApimSignUpSettingsInputs
 
-class ApimSignUpSettingsResourceProvider
+/** @internal */
+export class ApimSignUpSettingsResourceProvider
   implements BaseProvider<ApimSignUpSettingsInputs, ApimSignUpSettingsOutputs>
 {
   constructor(private name: string) {}
@@ -60,12 +61,14 @@ class ApimSignUpSettingsResourceProvider
       props.subscriptionId,
     );
 
-    await client.signUpSettings
-      .createOrUpdate(props.resourceGroupName, props.serviceName, {
+    await client.signUpSettings.createOrUpdate(
+      props.resourceGroupName,
+      props.serviceName,
+      {
         enabled: true,
         termsOfService: { consentRequired: true, enabled: true },
-      })
-      .catch();
+      },
+    );
   }
 }
 
