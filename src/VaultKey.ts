@@ -19,7 +19,7 @@ interface VaultKeyOutputs {
   key: KeyArgs;
 }
 
-class VaultKeyResourceProvider
+export class VaultKeyResourceProvider
   implements BaseProvider<VaultKeyInputs, VaultKeyOutputs>
 {
   constructor(private name: string) {}
