@@ -1,7 +1,7 @@
 import * as pulumi from '@pulumi/pulumi';
 import getKeyVaultBase from './AzBase/KeyVaultBase';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
-import { helpers } from './AzBase';
+import { diffProps, waitAndRetry } from './AzBase/Helpers';
 import { KeyVaultSecret } from '@azure/keyvault-secrets';
 
 interface VaultSecretInputs {
@@ -38,7 +38,7 @@ class VaultSecretResourceProvider
     );
 
     if (!ss) {
-      ss = await helpers.waitAndRetry(() => client.getSecret(props.name));
+      ss = await waitAndRetry(() => client.getSecret(props.name));
     }
 
     return {
@@ -51,23 +51,25 @@ class VaultSecretResourceProvider
     };
   }
 
+  /** Renaming or moving the secret replaces it (new created, old deleted). */
+  async diff(_id: string, olds: VaultSecretOutputs, news: VaultSecretInputs) {
+    if (news.ignoreChange) {
+      console.log(`the ${news.name} will be ignored from the update.`);
+      return { changes: false };
+    }
+    return diffProps(olds, news, {
+      replaceKeys: ['name', 'vaultName'],
+      outputKeys: ['version', 'vaultUrl'],
+    });
+  }
+
   async update(
-    id: string,
-    olds: VaultSecretOutputs,
+    _id: string,
+    _olds: VaultSecretOutputs,
     news: VaultSecretInputs,
   ): Promise<pulumi.dynamic.UpdateResult<VaultSecretOutputs>> {
-    if (olds.ignoreChange || news.ignoreChange) {
-      console.log(`the ${news.name} will be ignored from the update.`);
-      return { outs: olds };
-    }
-
-    //Create the new secret
-    const rs = await this.create(news);
-    //Delete the old Secret
-    if (olds.name !== news.name || olds.vaultName !== news.vaultName)
-      await this.delete(id, olds).catch();
-
-    return rs;
+    const { outs } = await this.create(news);
+    return { outs };
   }
 
   async delete(id: string, props: VaultSecretOutputs) {
@@ -76,7 +78,7 @@ class VaultSecretResourceProvider
       return;
     }
     const client = getKeyVaultBase(props.vaultName);
-    return await client.deleteSecret(props.name).catch();
+    return client.deleteSecret(props.name);
   }
 }
 

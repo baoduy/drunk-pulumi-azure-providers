@@ -1,23 +1,16 @@
 import { ComputeManagementClient } from '@azure/arm-compute';
-import { DefaultAzureCredential } from '@azure/identity';
-import { ResourceArgs, ResourceInfo } from '../types';
-import { getResourceInfoFromId } from './Helpers';
+import { ResourceArgs } from '../types';
+import { getCredential, searchResources } from './Helpers';
 
 /** Virtual Machine*/
 export class VM {
   private _client: ComputeManagementClient;
-  constructor(private subscriptionId: string) {
-    this._client = new ComputeManagementClient(
-      new DefaultAzureCredential(),
-      subscriptionId,
-    );
+  constructor(subscriptionId: string) {
+    this._client = new ComputeManagementClient(getCredential(), subscriptionId);
   }
-  public async search(filter: string | undefined = undefined) {
-    const list = new Array<ResourceInfo>();
-    for await (const aks of this._client.virtualMachines.listAll().byPage()) {
-      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
-    }
-    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+
+  public search(filter?: string) {
+    return searchResources(this._client.virtualMachines.listAll(), filter);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,21 +41,15 @@ export class VM {
 /** Virtual Scale Set*/
 export class VMS {
   private _client: ComputeManagementClient;
-  constructor(private subscriptionId: string) {
-    this._client = new ComputeManagementClient(
-      new DefaultAzureCredential(),
-      subscriptionId,
-    );
+  constructor(subscriptionId: string) {
+    this._client = new ComputeManagementClient(getCredential(), subscriptionId);
   }
 
-  public async search(filter: string | undefined = undefined) {
-    const list = new Array<ResourceInfo>();
-    for await (const aks of this._client.virtualMachineScaleSets
-      .listAll()
-      .byPage()) {
-      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
-    }
-    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+  public search(filter?: string) {
+    return searchResources(
+      this._client.virtualMachineScaleSets.listAll(),
+      filter,
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

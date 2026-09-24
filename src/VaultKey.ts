@@ -1,6 +1,6 @@
 import * as pulumi from '@pulumi/pulumi';
 import getKeyVaultBase, { KeyArgs } from './AzBase/KeyVaultBase';
-import { helpers } from './AzBase';
+import { diffProps, waitAndRetry } from './AzBase/Helpers';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { KeyVaultKey } from '@azure/keyvault-keys';
 
@@ -40,20 +40,28 @@ class VaultKeyResourceProvider
 
     //Await and re-load
     if (!key) {
-      key = await helpers.waitAndRetry(() => client.getKey(props.name));
+      key = await waitAndRetry(() => client.getKey(props.name));
     }
 
     return {
-      id: key!.id! ?? key!.properties.id!,
+      id: key!.id ?? key!.properties.id!,
       outs: {
         key: props.key,
-        id: key!.id! ?? key!.properties.id!,
+        id: key!.id ?? key!.properties.id!,
         name: key!.name!,
         vaultName: props.vaultName,
         vaultUrl: key!.properties.vaultUrl!,
         version: key!.properties.version!,
       },
     };
+  }
+
+  /** Renaming or moving the key replaces it (new created, old deleted). */
+  async diff(_id: string, olds: VaultKeyOutputs, news: VaultKeyInputs) {
+    return diffProps(olds, news, {
+      replaceKeys: ['name', 'vaultName'],
+      outputKeys: ['id', 'version', 'vaultUrl'],
+    });
   }
 
   public async update(
@@ -75,7 +83,7 @@ class VaultKeyResourceProvider
       return;
     }
     const client = getKeyVaultBase(props.vaultName);
-    return client.deleteKey(props.name).catch();
+    return client.deleteKey(props.name);
   }
 }
 

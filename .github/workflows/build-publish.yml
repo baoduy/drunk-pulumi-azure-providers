@@ -1,99 +1,72 @@
-# This is a basic workflow to help you get started with Actions
-
 name: build-publish
 
 on:
   workflow_dispatch: {}
+  pull_request:
+    branches: ['main']
   push:
-    branches: [ "main" ]
-    #paths:
-    #- src/**
+    branches: ['main']
 
 env:
   Enable_Release: 'true'
 
+# Never publish two versions at once.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release tag
+      id-token: write # npm provenance
     steps:
-      - uses: actions/checkout@v3
-
-        # Versioning
-      - uses: rmeneely/git-next-version@v1
+      # Actions pinned to commit SHAs (supply-chain safety); comments show the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          tag_pattern: 'v[0-9]*.[0-9]*.[0-9]*'
-          increment: 'patch'
-          auto_increment: 'true'
-          remove_prefix: 'true'
+          fetch-depth: 0 # tags are needed to compute the next version
 
-      - name: Print the version
-        run: |
-          echo ${{ env.NEXT_VERSION }}
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0 (version from packageManager)
 
-      - name: Cache node modules
-        id: cache-npm
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-node-modules
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          # npm cache files are stored in `~/.npm` on Linux/macOS
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 20
+          node-version: 24
+          cache: pnpm
           registry-url: 'https://registry.npmjs.org/'
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+      - run: pnpm install --frozen-lockfile
 
-      - name: Cache pnpm modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+      - run: pnpm exec eslint src
 
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run test
 
-      - name: Build and Pack
-        continue-on-error: true
+      - run: pnpm run build
+
+      - name: Compute next version
+        id: version
         run: |
-          export NODE_OPTIONS="--max_old_space_size=4096"
-          pnpm run build
-
-      - name: Update version in package.json
-        run: |
-          cd .out-bin
-          sed -i 's/"version": "0.0.1"/"version": "${{ env.NEXT_VERSION }}"/' package.json
-
-      # Create Release
-      - name: Create Release
-        id: create_release
-        if: ${{ env.Enable_Release == 'true' }}
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.NEXT_VERSION }}
-          release_name: Release ${{ env.NEXT_VERSION }}
-          draft: false
-          prerelease: false
+          last=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)
+          IFS=. read -r major minor patch <<< "${last:-v0.0.0}"
+          next="${major#v}.${minor}.$((patch + 1))"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "Next version: $next"
 
       - name: Publish to npm
-        if: ${{ env.Enable_Release == 'true' }}
+        if: ${{ github.event_name != 'pull_request' && env.Enable_Release == 'true' }}
+        working-directory: .out-bin
         run: |
-          cd .out-bin
-          pnpm config set //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN
-          pnpm config set scope "@drunk-pulumi"
-          pnpm publish --access public --no-git-checks
+          npm pkg set version=${{ steps.version.outputs.next }}
+          npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # After publishing, so a failed publish never leaves an orphan tag.
+      - name: Create Release
+        if: ${{ github.event_name != 'pull_request' && env.Enable_Release == 'true' }}
+        run: gh release create "v${{ steps.version.outputs.next }}" --title "Release ${{ steps.version.outputs.next }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,9 +1,8 @@
- 
 import { ApiManagementClient } from '@azure/arm-apimanagement';
-import { DefaultAzureCredential } from '@azure/identity';
 import * as pulumi from '@pulumi/pulumi';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { ResourceArgs } from './types';
+import { getCredential, ignoreNotFound } from './AzBase/Helpers';
 
 interface ApimSignUpSettingsInputs extends Omit<ResourceArgs, 'resourceName'> {
   subscriptionId: string;
@@ -16,7 +15,7 @@ interface ApimSignUpSettingsInputs extends Omit<ResourceArgs, 'resourceName'> {
   };
 }
 
-type ApimSignUpSettingsOutputs = ApimSignUpSettingsInputs
+type ApimSignUpSettingsOutputs = ApimSignUpSettingsInputs;
 
 class ApimSignUpSettingsResourceProvider
   implements BaseProvider<ApimSignUpSettingsInputs, ApimSignUpSettingsOutputs>
@@ -27,7 +26,7 @@ class ApimSignUpSettingsResourceProvider
     props: ApimSignUpSettingsInputs,
   ): Promise<pulumi.dynamic.CreateResult> {
     const client = new ApiManagementClient(
-      new DefaultAzureCredential(),
+      getCredential(),
       props.subscriptionId,
     );
 
@@ -56,7 +55,7 @@ class ApimSignUpSettingsResourceProvider
 
   async delete(id: string, props: ApimSignUpSettingsOutputs): Promise<void> {
     const client = new ApiManagementClient(
-      new DefaultAzureCredential(),
+      getCredential(),
       props.subscriptionId,
     );
 
@@ -65,7 +64,7 @@ class ApimSignUpSettingsResourceProvider
         enabled: true,
         termsOfService: { consentRequired: true, enabled: true },
       })
-      .catch();
+      .catch(ignoreNotFound);
   }
 }
 

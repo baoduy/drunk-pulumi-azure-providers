@@ -63,7 +63,6 @@
 - **Format**: Descriptive name in PascalCase
 - **Examples**:
   - `BaseProvider<TInputs, TOutputs>`
-  - `KeyVaultCache`
 
 ## Type Alias Naming
 
@@ -294,7 +293,7 @@ pnpm run build
 ```
 
 ### Configuration
-- ESLint config: `.eslintrc.cjs`
+- ESLint config: `eslint.config.mjs`
 - Prettier config: `package.json` (singleQuote: true)
 - TypeScript config: `tsconfig.json`
 

@@ -1,24 +1,18 @@
 import { PostgreSQLManagementFlexibleServerClient } from '@azure/arm-postgresql-flexible';
-import { DefaultAzureCredential } from '@azure/identity';
-import type { Server } from '@azure/arm-postgresql-flexible';
-import { ResourceArgs, ResourceInfo } from '../types';
-import { getResourceInfoFromId } from './Helpers';
+import { ResourceArgs } from '../types';
+import { getCredential, searchResources } from './Helpers';
 
 export class PostgreSqlFlexible {
   private _client: PostgreSQLManagementFlexibleServerClient;
-  constructor(private subscriptionId: string) {
+  constructor(subscriptionId: string) {
     this._client = new PostgreSQLManagementFlexibleServerClient(
-      new DefaultAzureCredential(),
+      getCredential(),
       subscriptionId,
     );
   }
 
-  public async search(filter: string | undefined = undefined) {
-    const list = new Array<ResourceInfo>();
-    for await (const page of this._client.servers.listBySubscription().byPage()) {
-      list.push(...page.map((server: Server) => getResourceInfoFromId(server.id!)));
-    }
-    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+  public search(filter?: string) {
+    return searchResources(this._client.servers.listBySubscription(), filter);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

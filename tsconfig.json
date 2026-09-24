@@ -16,29 +16,6 @@
     "noImplicitAny": true,
     "strict": true
   },
-  "files": [
-    "src/ApimSignInSettings.ts",
-    "src/ApimSignUpSettings.ts",
-    "src/AzBase/Aks.ts",
-    "src/AzBase/Compute.ts",
-    "src/AzBase/Helpers.ts",
-    "src/AzBase/KeyVaultBase.ts",
-    "src/AzBase/KeyVaultCache.ts",
-    "src/AzBase/MySqlFlexible.ts",
-    "src/AzBase/PostgreSqlFlexible.ts",
-    "src/AzBase/SqlServer.ts",
-    "src/AzBase/index.ts",
-    "src/BaseProvider.ts",
-    "src/CdnHttpsEnable.ts",
-    "src/PGPGenerator.ts",
-    "src/SshKeyGenerator.ts",
-    "src/VaultCert.ts",
-    "src/VaultKey.ts",
-    "src/VaultNetwork.ts",
-    "src/VaultSecret.ts",
-    "src/index.ts",
-    "src/types.ts"
-  ],
   "exclude": [
     "node_modules",
     "pulumi-test",
@@ -46,5 +23,8 @@
     ".out-bin",
     ".tools",
     "**/*.test.ts"
+  ],
+  "include": [
+    "src/**/*.ts"
   ]
 }

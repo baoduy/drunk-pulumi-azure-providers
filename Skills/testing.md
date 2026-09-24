@@ -26,10 +26,7 @@ pnpm test
 pnpm test-leak
 
 # Run specific test file
-pnpm testcert
-
-# Run tests with coverage
-pnpm test-cover
+cross-env NODE_OPTIONS='--import tsx' TSX_TSCONFIG_PATH='./tsconfig.test.json' mocha 'z_tests/Helpers.test.ts'
 ```
 
 ### Test Configuration
@@ -500,4 +497,4 @@ Before committing:
 - [ ] Test names are descriptive
 - [ ] Tests are organized logically
 - [ ] No tests are skipped unnecessarily
-- [ ] Test coverage is adequate (run `pnpm test-cover`)
+- [ ] New pure logic has a test in `z_tests/`
