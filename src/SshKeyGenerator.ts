@@ -1,7 +1,7 @@
 import * as forge from 'node-forge';
 import * as pulumi from '@pulumi/pulumi';
-import { generateKeyPair } from 'crypto';
-import { promisify } from 'util';
+import { generateKeyPair } from 'node:crypto';
+import { promisify } from 'node:util';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { diffProps } from './AzBase/Helpers';
 

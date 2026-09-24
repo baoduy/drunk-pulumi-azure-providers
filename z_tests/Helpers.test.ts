@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   diffProps,
+  errorMessage,
   getResourceInfoFromId,
   ignoreNotFound,
   waitAndRetry,
@@ -63,5 +64,14 @@ describe('Helpers', () => {
       }),
       { changes: true, replaces: ['name'] },
     );
+  });
+});
+
+describe('errorMessage', () => {
+  it('never falls back to [object Object]', () => {
+    assert.equal(errorMessage(new Error('boom')), 'boom');
+    assert.equal(errorMessage('plain'), 'plain');
+    assert.equal(errorMessage({ message: 'rest error' }), 'rest error');
+    assert.equal(errorMessage({ code: 403 }), '{"code":403}');
   });
 });

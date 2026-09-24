@@ -5,7 +5,7 @@ import {
   CertificateClient,
   KnownKeyUsageTypes,
 } from '@azure/keyvault-certificates';
-import { collect, getCredential } from './Helpers';
+import { collect, errorMessage, getCredential } from './Helpers';
 
 // Consumers may call KeyVaultBase directly from a Pulumi program; never delete during preview.
 const isDryRun = Boolean(process.env.PULUMI_NODEJS_DRY_RUN);
@@ -43,8 +43,8 @@ export type CertArgs = {
   tags?: { [p: string]: string };
 };
 
-const logError = (vault: string) => (err: { message?: string }) => {
-  console.error(`${vault}: ${err.message || err}`);
+const logError = (vault: string) => (err: unknown) => {
+  console.error(`${vault}: ${errorMessage(err)}`);
   return undefined;
 };
 
@@ -87,9 +87,9 @@ export class KeyVaultBase {
   }
 
   private warnDeleteFailed =
-    (kind: string, name: string) => (err: { message?: string }) => {
+    (kind: string, name: string) => (err: unknown) => {
       console.warn(
-        `${this.keyVaultName} - failed to delete ${kind} '${name}': ${err.message || err}`,
+        `${this.keyVaultName} - failed to delete ${kind} '${name}': ${errorMessage(err)}`,
       );
     };
 
@@ -346,5 +346,9 @@ export class KeyVaultBase {
   }
 }
 
-export default (keyVaultName: string, apiVersion?: string) =>
-  new KeyVaultBase(keyVaultName, apiVersion);
+export default function getKeyVaultBase(
+  keyVaultName: string,
+  apiVersion?: string,
+) {
+  return new KeyVaultBase(keyVaultName, apiVersion);
+}

@@ -24,6 +24,14 @@ export const waitAndRetry = async <T>(
   return rs;
 };
 
+/** Readable message for any thrown value (never `[object Object]`). */
+export const errorMessage = (err: unknown): string => {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  const message = (err as { message?: unknown } | null)?.message;
+  return typeof message === 'string' ? message : JSON.stringify(err);
+};
+
 /** Use as `.catch(ignoreNotFound)`: swallows 404s only, rethrows everything else. */
 export const ignoreNotFound = (err: { statusCode?: number }) => {
   if (err?.statusCode === 404) return undefined;
