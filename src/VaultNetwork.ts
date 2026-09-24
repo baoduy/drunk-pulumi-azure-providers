@@ -22,7 +22,7 @@ const applyChange = (
   const set = new Set(current);
   oldItems?.forEach((item) => set.delete(item));
   newItems?.forEach((item) => set.add(item));
-  return Array.from(set).sort();
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
 };
 
 /**

@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const tsConfigPath = './tsconfig.json'; // Path to tsconfig.json
 const srcPackageJsonPath = './package.json'; // Source package.json path
