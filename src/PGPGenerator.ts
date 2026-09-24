@@ -1,5 +1,6 @@
 import * as pulumi from '@pulumi/pulumi';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
+import { diffProps } from './AzBase/Helpers';
 
 type UserInfo = { name: string; email: string };
 export interface PGPProps {
@@ -9,32 +10,32 @@ export interface PGPProps {
   validDays?: number;
 }
 
-const generatePGP = async ({
+export const generatePGP = async ({
   user,
   passphrase,
   type,
   validDays,
-}: PGPProps) => {
+}: PGPProps): Promise<{
+  publicKey: string;
+  privateKey: string;
+  revocationCertificate: string;
+}> => {
   const { generateKey } = await import('openpgp');
-  const now = new Date();
-  const expireDate = new Date();
-  if (validDays) expireDate.setDate(expireDate.getDate() + validDays);
 
   return generateKey({
-    curve: 'brainpoolP512r1',
+    // Ed25519/Cv25519: native in openpgp and widely supported by GnuPG (brainpool needs an optional native module).
+    curve: 'curve25519Legacy',
     format: 'armored',
     type: type ?? 'rsa',
-    date: now,
-    keyExpirationTime: validDays ? expireDate.getTime() : undefined,
+    date: new Date(),
+    // openpgp expects seconds from key creation, not a timestamp.
+    keyExpirationTime: validDays ? validDays * 24 * 60 * 60 : undefined,
     passphrase,
     userIDs: [user],
   });
 };
 
-interface PGPInputs extends PGPProps {
-  user: UserInfo;
-  passphrase?: string;
-}
+type PGPInputs = PGPProps;
 
 interface PGPOutputs extends PGPInputs {
   publicKey: string;
@@ -62,15 +63,12 @@ class PGPResourceProvider implements BaseProvider<PGPInputs, PGPOutputs> {
     };
   }
 
-  /** The method will be executed when pulumi resource is updating.
-   * We do nothing here but just return the output that was created before*/
-  async update(
-    id: string,
-    old: PGPOutputs,
-    _news: PGPInputs,
-  ): Promise<pulumi.dynamic.UpdateResult<PGPOutputs>> {
-    //no update needed
-    return { outs: old };
+  /** Any input change regenerates the key. */
+  async diff(_id: string, olds: PGPOutputs, news: PGPInputs) {
+    return diffProps(olds, news, {
+      replaceKeys: ['user', 'passphrase', 'type', 'validDays'],
+      outputKeys: ['publicKey', 'privateKey', 'revocationCertificate'],
+    });
   }
 }
 

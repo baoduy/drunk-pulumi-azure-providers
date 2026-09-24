@@ -13,23 +13,33 @@ importers:
         version: 4.13.1
       '@drunk-pulumi/azure-providers':
         specifier: file:/../.out-bin
-        version: file:../.out-bin(@types/node@26.1.1)
+        version: file:../.out-bin(@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2))(@pulumi/pulumi@3.253.0(@typescript/typescript6@6.0.2))
       '@pulumi/azure-native':
         specifier: ^3.21.0
-        version: 3.21.0(typescript@6.0.3)
+        version: 3.21.0(@typescript/typescript6@6.0.2)
       '@pulumi/pulumi':
         specifier: ^3.253.0
-        version: 3.253.0(typescript@6.0.3)
+        version: 3.253.0(@typescript/typescript6@6.0.2)
     devDependencies:
       '@types/node':
         specifier: ^26
         version: 26.1.1
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
 
 packages:
 
   '@azure-rest/core-client@2.5.0':
     resolution: {integrity: sha512-KMVIPxG6ygcQ1M2hKHahF7eddKejYsWTjoLIfTWiqnaj42dBkYzj4+S8rK9xxmlOaEHKZHcMrRbm0NfN4kgwHw==}
     engines: {node: '>=20.0.0'}
+
+  '@azure-rest/core-client@2.9.0':
+    resolution: {integrity: sha512-6933vNLqh06RR7rumnrq3UZIeBtRLeBHDPMrieDPIljiCaMMwt0nRw++nd3TOxiohtasNtm29rC+b/9ZVKCOqg==}
+    engines: {node: '>=22.0.0'}
 
   '@azure/abort-controller@1.1.0':
     resolution: {integrity: sha512-TrRLIoSQVzfAJX9H1JeFjzAoDGcoK1IYX1UImfceTZpsyYfWr09Ss1aHW1y5TrrR3iq6RZLBwJ3E24uwPhwahw==}
@@ -43,17 +53,17 @@ packages:
     resolution: {integrity: sha512-Gf6xnuTWjeB4VSPXlFMoIa70GmRvRD6cd/frO+zDijiGYwBZ4vzydDLqZPlDEXPtHbK7Pj0lOslDg4BuBfdyGA==}
     engines: {node: '>=18.0.0'}
 
-  '@azure/arm-cdn@9.1.0':
-    resolution: {integrity: sha512-qbT7nHUecJIowC2jlilqyA5M+iSPuwp3UaqOHZR5/y/6M9K/F0VTsaYnLw0qA53FznY+VxyOv+GwGjJn8TCXWQ==}
-    engines: {node: '>=18.0.0'}
+  '@azure/arm-cdn@10.0.0':
+    resolution: {integrity: sha512-4iXsGjUfvOoawUJHA7KParBhszKddwlHAW2sxcBAYG7qW+1AF6kkfvQMsyXEpY5NuQwg0xASj7dIMzS9eWOAZA==}
+    engines: {node: '>=22.0.0'}
 
-  '@azure/arm-compute@24.1.0':
-    resolution: {integrity: sha512-RabLRMQ05DF13VgV5BKKJ1/+7KG5LkwCaYTPNQxwbUTYm0vgH4WEypBMCiWHklt5FoBL8EFyfux2f1gWVU4JkQ==}
-    engines: {node: '>=20.0.0'}
+  '@azure/arm-compute@25.1.1':
+    resolution: {integrity: sha512-pwo9ymXvfYh3awUS7oLbMOGN1VPznHqC3fKU8bSICCA0x/oUVZ4JF792NhBeI3urL8M3VHleSpEbtvRzS4V0Qw==}
+    engines: {node: '>=22.0.0'}
 
-  '@azure/arm-containerservice@25.3.0':
-    resolution: {integrity: sha512-kHO3O2mjhrTASm12JKptq+jvXI+K0d5N/jRBd0Z0/VxEsmueGnSgtJjuUXZrdJxc2ZTqH/GAuHNvfjhPeUwmGw==}
-    engines: {node: '>=20.0.0'}
+  '@azure/arm-containerservice@25.5.0':
+    resolution: {integrity: sha512-yuER7Y6MgGeW1R/2hzsLhk+wXotRV6T0kA6bZ98B5FYBgIDGOcrv24MY8qFoRbOCznG/TX0WffQ6z686X7q8yg==}
+    engines: {node: '>=22.0.0'}
 
   '@azure/arm-keyvault@5.0.0':
     resolution: {integrity: sha512-kQX6pu/sjOoPadT37UxgyuFuXOPqp+KzEjgYCVW7r4nonvRjBPCYxANddNwmzzoYIolShur6K5u9G01M5gH5yw==}
@@ -98,6 +108,10 @@ packages:
   '@azure/core-rest-pipeline@1.22.0':
     resolution: {integrity: sha512-OKHmb3/Kpm06HypvB3g6Q3zJuvyXcpxDpCS1PnU8OV6AJgSFaee/covXBcPbWc6XDDxtEPlbi3EMQ6nUiPaQtw==}
     engines: {node: '>=20.0.0'}
+
+  '@azure/core-rest-pipeline@1.25.0':
+    resolution: {integrity: sha512-bMs8ekJLjX8wPV+9IPBges1SLPyuDtE9g5gLDWOpxzKcoOFQnpLGkbcT1tdw3FaAmDS1gnPmMmJ6y/T5B96kIA==}
+    engines: {node: '>=22.0.0'}
 
   '@azure/core-tracing@1.3.0':
     resolution: {integrity: sha512-+XvmZLLWPe67WXNZo9Oc9CrPj/Tm8QnHR92fFAFdnbzwNdCH1h+7UdpaQgRSBsMY+oW1kHXNUZQLdZ1gHX3ROw==}
@@ -145,6 +159,9 @@ packages:
 
   '@drunk-pulumi/azure-providers@file:../.out-bin':
     resolution: {directory: ../.out-bin, type: directory}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@pulumi/pulumi': ^3.0.0
 
   '@gar/promise-retry@1.0.3':
     resolution: {integrity: sha512-GmzA9ckNokPypTg10pgpeHNQe7ph+iIKKmhKu3Ob9ANkswreCx7R3cKmY781K8QK3AqVL3xVh9A42JvIAbkkSA==}
@@ -659,9 +676,137 @@ packages:
   '@types/tmp@0.2.6':
     resolution: {integrity: sha512-chhaNf2oKHlRkDGt+tiKE2Z5aJ6qalm7Z9rlLdBwmOiAAf09YQvvoLXjWK4HWPF1xU/fqvMgfNfpVoBscA/tKA==}
 
+  '@typescript/typescript-aix-ppc64@7.0.2':
+    resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [ppc64]
+    os: [aix]
+
+  '@typescript/typescript-darwin-arm64@7.0.2':
+    resolution: {integrity: sha512-gowzar9MwS/aRWp6f3a4KUqzRjAZjOsmGNCM6LcTgXum+dBfgsBVMN+AgvOCCbguXyick6LJhpBszxMebJ8syA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@typescript/typescript-darwin-x64@7.0.2':
+    resolution: {integrity: sha512-SZ9xZInqApNlNGc9s0W1VSsktYSOe9cFqNOIqmN1Gs8SmkjKZYFt017G4VwPxASInODuAdbTW7sXiFUf893RgA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@typescript/typescript-freebsd-arm64@7.0.2':
+    resolution: {integrity: sha512-W5NH4y/J0plIIS5b2xvTEkU7JFxyqdMAOgf+Ilhl0vHQXKO5dZoxd+C/jEtq56c4F3wk71RB4BMRQ2XdI+bwYQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [freebsd]
+
+  '@typescript/typescript-freebsd-x64@7.0.2':
+    resolution: {integrity: sha512-UMGDx5sTpzNw3WiPebH7l90IWfJggEd+egHt/q6p7/Cm3zqoV7VxkGXt+3DxPIw8CcmvAB0j3sVVfbhX+M4Tpw==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@typescript/typescript-linux-arm64@7.0.2':
+    resolution: {integrity: sha512-Qh4eU4/y3yDjnfjjyPYihMj5/ODIlmt+Bzu17OI+fiSRDW57QmU5SiN63exPRNJPKUzcc1INa1NXdrJ+MqHjUQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@typescript/typescript-linux-arm@7.0.2':
+    resolution: {integrity: sha512-gffT3xPz9sR7j/YJExkyPntrI0P2EP9XbOyWzth2/Gs0RstK+90RBcO0ncXoXy/beYll1SXw846Nf2zdnEz0QQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm]
+    os: [linux]
+
+  '@typescript/typescript-linux-loong64@7.0.2':
+    resolution: {integrity: sha512-uEHck9i8hoAzXPiYRib1O7miOnz23SxIeVl6F4LXox+qov1K35jHcEW6VHKvZI+pyvl7fZEP4MCU5LYvIq1GuQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [loong64]
+    os: [linux]
+
+  '@typescript/typescript-linux-mips64el@7.0.2':
+    resolution: {integrity: sha512-R4KvAMnE43W5Qeqb0Ly56O3mWMWIAgsMyz36DCaycd5nbg/9kzm0liw3JocfRqyJY0KPmzFjbswozXyW0DnIYA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [mips64el]
+    os: [linux]
+
+  '@typescript/typescript-linux-ppc64@7.0.2':
+    resolution: {integrity: sha512-DORx5b3sd/4S7eayxm4FQv+A7CrkUIGRaHiwI8oiHTAI1fAPWhF4J0vAlkC8biAlHSVVwxMQ3tjZ2/DVbnQiiA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [ppc64]
+    os: [linux]
+
+  '@typescript/typescript-linux-riscv64@7.0.2':
+    resolution: {integrity: sha512-wf0jqEDOjrPRnKwYRyyJDRo11KMbvMFrU+q4zqKyChODBzvlkbhNQfKvLxQCcwTpdDaXSHZTVuh0JoCrKCUMHQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [riscv64]
+    os: [linux]
+
+  '@typescript/typescript-linux-s390x@7.0.2':
+    resolution: {integrity: sha512-IkwJc3L7yhytWd/ewjyxNDfOmswCm9GWMJT/ue/dU4aZNbwZeYAetq42VyLmsmSjvoX7z74X6ZaYCtzAr0EuGw==}
+    engines: {node: '>=16.20.0'}
+    cpu: [s390x]
+    os: [linux]
+
+  '@typescript/typescript-linux-x64@7.0.2':
+    resolution: {integrity: sha512-EYdf2cNg7rgCWJnxCdJ+F3V39O8ihb37eHAu1LK8oAFizgTQbPOK7zHHXbPt8rX24COqODXeI3sIf0fCXG7H/A==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [linux]
+
+  '@typescript/typescript-netbsd-arm64@7.0.2':
+    resolution: {integrity: sha512-+polYF4MF04aPpO5FTkHran9yUQDSXqy5GiSDKpsll5jy3l3+g9QLhpf39T+ePtefhXLOGrLl0QIjkQP6VnelA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [netbsd]
+
+  '@typescript/typescript-netbsd-x64@7.0.2':
+    resolution: {integrity: sha512-8YIT0EHM/3dq10ZOVF/A7pc/YSMtbcecct4rWtexrnSCHOPcpC2KTLXfTCR6vDpnSiY12heNb1GiN/wu+T/FyA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [netbsd]
+
+  '@typescript/typescript-openbsd-arm64@7.0.2':
+    resolution: {integrity: sha512-APT8+ClYnuYm1u9+kgGXoMj2VzWzcymwh2gNSQVySHfkRDGOTVkoWLjCmOQSaO+PoqQ57B0flRp9SA+7GnnkzQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [openbsd]
+
+  '@typescript/typescript-openbsd-x64@7.0.2':
+    resolution: {integrity: sha512-yX7s+Q0Dln0Dt9tEzZsAjXXR/+ytBM7AlglaqyeMPxQszJ1JhlJdZ6jLA+IzldHtflX81em7lDao1xXu+aRRkg==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [openbsd]
+
+  '@typescript/typescript-sunos-x64@7.0.2':
+    resolution: {integrity: sha512-dLJDGaLZ1D4HPQn62u1n8mBDkJREwMsAkCdkwd4Ieqw+x3TUyTsqY0YiBCtE6H6OzzgGk3iuZ3vFWRS+E8/d1g==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [sunos]
+
+  '@typescript/typescript-win32-arm64@7.0.2':
+    resolution: {integrity: sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@typescript/typescript-win32-x64@7.0.2':
+    resolution: {integrity: sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [win32]
+
+  '@typescript/typescript6@6.0.2':
+    resolution: {integrity: sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w==}
+    hasBin: true
+
   '@typespec/ts-http-runtime@0.3.0':
     resolution: {integrity: sha512-sOx1PKSuFwnIl7z4RN0Ls7N9AQawmR9r66eI5rFCzLDIs8HTIYrIpH9QjYWoX0lkgGrkLxXhi4QnK7MizPRrIg==}
     engines: {node: '>=20.0.0'}
+
+  '@typespec/ts-http-runtime@0.3.9':
+    resolution: {integrity: sha512-edSdeAqkdxBVzA1yL1LrLCml1YjyCVvPMtMqJpbF+6K609tHe8V6sQUzFQSGcYNhcuhOceZtjvN32+mpIth30A==}
+    engines: {node: '>=22.0.0'}
 
   abbrev@2.0.0:
     resolution: {integrity: sha512-6/mh1E2u2YgEsCHdY0Yx5oW+61gZU+1vXaoiHHrpKeuRNNgFvS+/jrwHiQhB5apAf5oB7UB7E19ol2R2LKH8hQ==}
@@ -1714,6 +1859,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@7.0.2:
+    resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
+    engines: {node: '>=16.20.0'}
+    hasBin: true
+
   undici-types@7.8.0:
     resolution: {integrity: sha512-9UJ2xGDvQ43tYyVMpuHlsgApydB8ZKfVYTsLDhXkFL/6gfkp+U8xTGdh8pMJv1SpZna0zxG1DwsKZsreLbXBxw==}
 
@@ -1831,6 +1981,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@azure-rest/core-client@2.9.0':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-auth': 1.10.0
+      '@azure/core-rest-pipeline': 1.25.0
+      '@azure/core-tracing': 1.3.0
+      '@typespec/ts-http-runtime': 0.3.9
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
   '@azure/abort-controller@1.1.0':
     dependencies:
       tslib: 2.8.1
@@ -1851,19 +2012,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@azure/arm-cdn@9.1.0':
-    dependencies:
-      '@azure/abort-controller': 1.1.0
-      '@azure/core-auth': 1.10.0
-      '@azure/core-client': 1.10.0
-      '@azure/core-lro': 2.7.2
-      '@azure/core-paging': 1.6.2
-      '@azure/core-rest-pipeline': 1.22.0
-      tslib: 2.8.1
-    transitivePeerDependencies:
-      - supports-color
-
-  '@azure/arm-compute@24.1.0':
+  '@azure/arm-cdn@10.0.0':
     dependencies:
       '@azure-rest/core-client': 2.5.0
       '@azure/abort-controller': 2.1.2
@@ -1876,13 +2025,26 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@azure/arm-containerservice@25.3.0':
+  '@azure/arm-compute@25.1.1':
     dependencies:
       '@azure-rest/core-client': 2.5.0
       '@azure/abort-controller': 2.1.2
       '@azure/core-auth': 1.10.0
       '@azure/core-lro': 3.4.0
       '@azure/core-rest-pipeline': 1.22.0
+      '@azure/core-util': 1.13.0
+      '@azure/logger': 1.3.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/arm-containerservice@25.5.0':
+    dependencies:
+      '@azure-rest/core-client': 2.9.0
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-auth': 1.10.0
+      '@azure/core-lro': 3.4.0
+      '@azure/core-rest-pipeline': 1.25.0
       '@azure/core-util': 1.13.0
       '@azure/logger': 1.3.0
       tslib: 2.8.1
@@ -2006,6 +2168,18 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@azure/core-rest-pipeline@1.25.0':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-auth': 1.10.0
+      '@azure/core-tracing': 1.3.0
+      '@azure/core-util': 1.13.0
+      '@azure/logger': 1.3.0
+      '@typespec/ts-http-runtime': 0.3.9
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
   '@azure/core-tracing@1.3.0':
     dependencies:
       tslib: 2.8.1
@@ -2113,12 +2287,12 @@ snapshots:
       '@azure/msal-common': 16.11.1
       jsonwebtoken: 9.0.2
 
-  '@drunk-pulumi/azure-providers@file:../.out-bin(@types/node@26.1.1)':
+  '@drunk-pulumi/azure-providers@file:../.out-bin(@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2))(@pulumi/pulumi@3.253.0(@typescript/typescript6@6.0.2))':
     dependencies:
       '@azure/arm-apimanagement': 10.0.0
-      '@azure/arm-cdn': 9.1.0
-      '@azure/arm-compute': 24.1.0
-      '@azure/arm-containerservice': 25.3.0
+      '@azure/arm-cdn': 10.0.0
+      '@azure/arm-compute': 25.1.1
+      '@azure/arm-containerservice': 25.5.0
       '@azure/arm-keyvault': 5.0.0
       '@azure/arm-mysql-flexible': 3.1.0
       '@azure/arm-network': 37.0.0
@@ -2128,17 +2302,12 @@ snapshots:
       '@azure/keyvault-certificates': 4.10.3
       '@azure/keyvault-keys': 4.10.2
       '@azure/keyvault-secrets': 4.11.2
-      '@openpgp/web-stream-tools': 0.3.1(@types/node@26.1.1)(typescript@6.0.3)
-      '@pulumi/azure-native': 3.21.0(typescript@6.0.3)
-      '@pulumi/pulumi': 3.253.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.253.0(@typescript/typescript6@6.0.2)
       node-forge: 1.4.0
-      openpgp: 6.3.1(@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(typescript@6.0.3))
-      typescript: 6.0.3
+      openpgp: 6.3.1(@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2))
     transitivePeerDependencies:
-      - '@types/node'
-      - bluebird
+      - '@openpgp/web-stream-tools'
       - supports-color
-      - ts-node
 
   '@gar/promise-retry@1.0.3': {}
 
@@ -2433,10 +2602,11 @@ snapshots:
       - bluebird
       - supports-color
 
-  '@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(typescript@6.0.3)':
+  '@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2)':
     optionalDependencies:
       '@types/node': 26.1.1
-      typescript: 6.0.3
+      typescript: '@typescript/typescript6@6.0.2'
+    optional: true
 
   '@opentelemetry/api-logs@0.220.0':
     dependencies:
@@ -2669,16 +2839,16 @@ snapshots:
 
   '@protobufjs/utf8@1.1.2': {}
 
-  '@pulumi/azure-native@3.21.0(typescript@6.0.3)':
+  '@pulumi/azure-native@3.21.0(@typescript/typescript6@6.0.2)':
     dependencies:
-      '@pulumi/pulumi': 3.187.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.187.0(@typescript/typescript6@6.0.2)
     transitivePeerDependencies:
       - bluebird
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/pulumi@3.187.0(typescript@6.0.3)':
+  '@pulumi/pulumi@3.187.0(@typescript/typescript6@6.0.2)':
     dependencies:
       '@grpc/grpc-js': 1.13.4
       '@logdna/tail-file': 2.2.0
@@ -2709,12 +2879,12 @@ snapshots:
       tmp: 0.2.3
       upath: 1.2.0
     optionalDependencies:
-      typescript: 6.0.3
+      typescript: '@typescript/typescript6@6.0.2'
     transitivePeerDependencies:
       - bluebird
       - supports-color
 
-  '@pulumi/pulumi@3.253.0(typescript@6.0.3)':
+  '@pulumi/pulumi@3.253.0(@typescript/typescript6@6.0.2)':
     dependencies:
       '@grpc/grpc-js': 1.13.4
       '@logdna/tail-file': 2.2.0
@@ -2742,7 +2912,7 @@ snapshots:
       source-map-support: 0.5.21
       upath: 1.2.0
     optionalDependencies:
-      typescript: 6.0.3
+      typescript: '@typescript/typescript6@6.0.2'
     transitivePeerDependencies:
       - supports-color
 
@@ -2861,7 +3031,79 @@ snapshots:
 
   '@types/tmp@0.2.6': {}
 
+  '@typescript/typescript-aix-ppc64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-darwin-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-darwin-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-freebsd-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-freebsd-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-arm@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-loong64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-mips64el@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-ppc64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-riscv64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-s390x@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-netbsd-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-netbsd-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-openbsd-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-openbsd-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-sunos-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-win32-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-win32-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript6@6.0.2':
+    dependencies:
+      '@typescript/old': typescript@6.0.3
+
   '@typespec/ts-http-runtime@0.3.0':
+    dependencies:
+      http-proxy-agent: 7.0.2
+      https-proxy-agent: 7.0.6
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@typespec/ts-http-runtime@0.3.9':
     dependencies:
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
@@ -3613,9 +3855,9 @@ snapshots:
       is-inside-container: 1.0.0
       wsl-utils: 0.1.0
 
-  openpgp@6.3.1(@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(typescript@6.0.3)):
+  openpgp@6.3.1(@openpgp/web-stream-tools@0.3.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2)):
     optionalDependencies:
-      '@openpgp/web-stream-tools': 0.3.1(@types/node@26.1.1)(typescript@6.0.3)
+      '@openpgp/web-stream-tools': 0.3.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2)
 
   p-cancelable@2.1.1: {}
 
@@ -3988,6 +4230,29 @@ snapshots:
       - supports-color
 
   typescript@6.0.3: {}
+
+  typescript@7.0.2:
+    optionalDependencies:
+      '@typescript/typescript-aix-ppc64': 7.0.2
+      '@typescript/typescript-darwin-arm64': 7.0.2
+      '@typescript/typescript-darwin-x64': 7.0.2
+      '@typescript/typescript-freebsd-arm64': 7.0.2
+      '@typescript/typescript-freebsd-x64': 7.0.2
+      '@typescript/typescript-linux-arm': 7.0.2
+      '@typescript/typescript-linux-arm64': 7.0.2
+      '@typescript/typescript-linux-loong64': 7.0.2
+      '@typescript/typescript-linux-mips64el': 7.0.2
+      '@typescript/typescript-linux-ppc64': 7.0.2
+      '@typescript/typescript-linux-riscv64': 7.0.2
+      '@typescript/typescript-linux-s390x': 7.0.2
+      '@typescript/typescript-linux-x64': 7.0.2
+      '@typescript/typescript-netbsd-arm64': 7.0.2
+      '@typescript/typescript-netbsd-x64': 7.0.2
+      '@typescript/typescript-openbsd-arm64': 7.0.2
+      '@typescript/typescript-openbsd-x64': 7.0.2
+      '@typescript/typescript-sunos-x64': 7.0.2
+      '@typescript/typescript-win32-arm64': 7.0.2
+      '@typescript/typescript-win32-x64': 7.0.2
 
   undici-types@7.8.0: {}
 

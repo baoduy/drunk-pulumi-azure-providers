@@ -1,14 +1,13 @@
-import { SecretClient, SecretProperties } from '@azure/keyvault-secrets';
-import { DefaultAzureCredential } from '@azure/identity';
-import { KeyClient, KeyProperties } from '@azure/keyvault-keys';
+import { SecretClient } from '@azure/keyvault-secrets';
+import { KeyClient } from '@azure/keyvault-keys';
 import {
   ArrayOneOrMore,
   CertificateClient,
-  CertificateProperties,
   KnownKeyUsageTypes,
 } from '@azure/keyvault-certificates';
-import { getKeyVaultCache, KeyVaultCacheType } from './KeyVaultCache';
+import { collect, getCredential } from './Helpers';
 
+// Consumers may call KeyVaultBase directly from a Pulumi program; never delete during preview.
 const isDryRun = Boolean(process.env.PULUMI_NODEJS_DRY_RUN);
 
 type KeySizes = 2048 | 3072 | 4096;
@@ -22,7 +21,9 @@ type KeyOpsTypes =
   | 'unwrapKey';
 
 export type KeyArgs = {
+  /** Default 4096. */
   keySize?: KeySizes;
+  /** Default `['wrapKey', 'unwrapKey']` (customer-managed-key encryption). Pass more ops explicitly if needed. */
   keyOps?: Array<KeyOpsTypes>;
   tags?: { [p: string]: string };
 };
@@ -32,423 +33,318 @@ export type CertArgs = {
   dnsNames?: ArrayOneOrMore<string>;
   serverAuth?: boolean;
   validityInMonths?: number;
+  /** Default 4096. */
   keySize?: KeySizes;
   keyType?: KeyTypes;
+  /** Allow the private key to be exported via the secret endpoint (needed by App Gateway/App Service). Default true. */
+  exportable?: boolean;
+  /** Keep the same key pair on auto-renewal. Default false (rotate the key). */
+  reuseKey?: boolean;
   tags?: { [p: string]: string };
+};
+
+const logError = (vault: string) => (err: { message?: string }) => {
+  console.error(`${vault}: ${err.message || err}`);
+  return undefined;
 };
 
 export class KeyVaultBase {
   private secretClient: SecretClient;
   private keyClient: KeyClient;
   private certClient: CertificateClient;
-  private cache: KeyVaultCacheType;
+  /** Per-instance read cache for latest (unversioned) secrets/keys/certs; writes invalidate it. */
+  private cache = new Map<string, unknown>();
 
+  /**
+   * @param keyVaultName vault name (public Azure cloud) or the full vault URL for sovereign clouds.
+   * @param _apiVersion unused (the SDK picks the API version); kept for backward compatibility.
+   */
   public constructor(
     private keyVaultName: string,
-    _apiVersion: string,
+    _apiVersion?: string,
   ) {
-    const url = `https://${keyVaultName}.vault.azure.net`;
-    const credential = new DefaultAzureCredential();
+    const url = keyVaultName.startsWith('https://')
+      ? keyVaultName
+      : `https://${keyVaultName}.vault.azure.net`;
+    const credential = getCredential();
 
     this.secretClient = new SecretClient(url, credential);
     this.keyClient = new KeyClient(url, credential);
     this.certClient = new CertificateClient(url, credential);
-    this.cache = getKeyVaultCache(keyVaultName);
   }
 
-  public async listSecrets() {
-    const list = new Array<SecretProperties>();
-    const rs = this.secretClient
-      .listPropertiesOfSecrets()
-      .byPage({ maxPageSize: 15 });
+  private async cached<T>(
+    key: string,
+    version: string | undefined,
+    load: () => Promise<T | undefined>,
+  ): Promise<T | undefined> {
+    // A specific version must never be served from the "latest" cache entry.
+    if (version) return load();
+    if (this.cache.has(key)) return this.cache.get(key) as T;
+    const result = await load();
+    if (result) this.cache.set(key, result);
+    return result;
+  }
 
-    for await (const s of rs) {
-      s.forEach((p) => list.push(p));
-    }
-    return list;
+  private warnDeleteFailed =
+    (kind: string, name: string) => (err: { message?: string }) => {
+      console.warn(
+        `${this.keyVaultName} - failed to delete ${kind} '${name}': ${err.message || err}`,
+      );
+    };
+
+  public listSecrets() {
+    return collect(this.secretClient.listPropertiesOfSecrets());
   }
 
   /** Get Secret Versions*/
-  public async getSecretVersions(
-    name: string,
-    version: string | undefined = undefined,
-  ) {
-    const rs = this.secretClient
-      .listPropertiesOfSecretVersions(name)
-      .byPage({ maxPageSize: 10 });
-
-    const versionsList = new Array<SecretProperties>();
-    for await (const s of rs) {
-      s.forEach((p) => versionsList.push(p));
-    }
-
-    //Filter for specific version only
-    if (version) return versionsList.filter((s) => s.version === version);
-    return versionsList;
+  public async getSecretVersions(name: string, version?: string) {
+    const list = await collect(
+      this.secretClient.listPropertiesOfSecretVersions(name),
+    );
+    return version ? list.filter((s) => s.version === version) : list;
   }
 
-  public async listKeys() {
-    const list = new Array<KeyProperties>();
-    const rs = this.keyClient
-      .listPropertiesOfKeys()
-      .byPage({ maxPageSize: 15 });
-
-    for await (const s of rs) {
-      s.forEach((p) => list.push(p));
-    }
-    return list;
+  public listKeys() {
+    return collect(this.keyClient.listPropertiesOfKeys());
   }
 
   /** Get Key Versions*/
-  public async getKeyVersions(
-    name: string,
-    version: string | undefined = undefined,
-  ) {
-    const rs = this.keyClient
-      .listPropertiesOfKeyVersions(name)
-      .byPage({ maxPageSize: 10 });
-
-    const versionsList = new Array<KeyProperties>();
-    for await (const s of rs) {
-      s.forEach((p) => versionsList.push(p));
-    }
-
-    //Filter for specific version only
-    if (version) return versionsList.filter((s) => s.version === version);
-    return versionsList;
+  public async getKeyVersions(name: string, version?: string) {
+    const list = await collect(this.keyClient.listPropertiesOfKeyVersions(name));
+    return version ? list.filter((s) => s.version === version) : list;
   }
 
-  public async listCerts() {
-    const list = new Array<CertificateProperties>();
-    const rs = this.certClient
-      .listPropertiesOfCertificates()
-      .byPage({ maxPageSize: 15 });
-
-    for await (const s of rs) {
-      s.forEach((p) => list.push(p));
-    }
-    return list;
+  public listCerts() {
+    return collect(this.certClient.listPropertiesOfCertificates());
   }
 
   /** Get Cert Versions*/
-  public async getCertVersions(
+  public async getCertVersions(name: string, version?: string) {
+    const list = await collect(
+      this.certClient.listPropertiesOfCertificateVersions(name),
+    );
+    return version ? list.filter((s) => s.version === version) : list;
+  }
+
+  private async hasEnabledVersion(
+    kind: string,
     name: string,
-    version: string | undefined = undefined,
+    versions: Promise<Array<{ enabled?: boolean }>>,
   ) {
-    const rs = this.certClient
-      .listPropertiesOfCertificateVersions(name)
-      .byPage({ maxPageSize: 10 });
+    const enabled = await versions
+      .then((t) => t.filter((s) => s.enabled))
+      .catch(() => undefined);
 
-    const versionsList = new Array<CertificateProperties>();
-    for await (const s of rs) {
-      s.forEach((p) => versionsList.push(p));
-    }
-
-    //Filter for specific version only
-    if (version) return versionsList.filter((s) => s.version === version);
-    return versionsList;
+    const exists = Boolean(enabled?.length);
+    console.info(`The ${kind} '${name}' is ${exists ? '' : 'NOT '}existed.`);
+    return exists;
   }
 
   /** Check whether Secret is existed or not*/
-  public async checkSecretExist(
-    name: string,
-    version: string | undefined = undefined,
-  ) {
-    const versions = await this.getSecretVersions(name, version)
-      .then((t) => t.filter((s) => s.enabled))
-      .catch(() => undefined);
-
-    if (versions && versions.length > 0) {
-      console.info(`The secret '${name}' is existed.`);
-      return true;
-    }
-
-    console.warn(`The secret '${name}' is NOT existed.`);
-    return false;
+  public checkSecretExist(name: string, version?: string) {
+    return this.hasEnabledVersion(
+      'secret',
+      name,
+      this.getSecretVersions(name, version),
+    );
   }
 
   /** Check whether Key is existed or not*/
-  public async checkKeyExist(
-    name: string,
-    version: string | undefined = undefined,
-  ) {
-    const items = await this.getKeyVersions(name, version)
-      .then((t) => t.filter((s) => s.enabled))
-      .catch(() => undefined);
-
-    if (items && items.length > 0) {
-      console.info(`The key '${name}' is existed.`);
-      return true;
-    }
-
-    console.warn(`The key '${name}' is NOT existed.`);
-    return false;
+  public checkKeyExist(name: string, version?: string) {
+    return this.hasEnabledVersion(
+      'key',
+      name,
+      this.getKeyVersions(name, version),
+    );
   }
 
   /** Check whether Cert is existed or not*/
-  public async checkCertExist(
-    name: string,
-    version: string | undefined = undefined,
-  ) {
-    const versions = await this.getCertVersions(name, version)
-      .then((t) => t.filter((s) => s.enabled))
-      .catch(() => undefined);
-
-    if (versions && versions.length > 0) {
-      console.info(`The Cert '${name}' is existed.`);
-      return true;
-    }
-
-    console.warn(`The Cert '${name}' is NOT existed.`);
-    return false;
+  public checkCertExist(name: string, version?: string) {
+    return this.hasEnabledVersion(
+      'cert',
+      name,
+      this.getCertVersions(name, version),
+    );
   }
 
   /**Get deleted Secret*/
-  public async getDeletedSecret(name: string) {
-    return await this.secretClient
-      .getDeletedSecret(name)
-      .catch(() => undefined);
+  public getDeletedSecret(name: string) {
+    return this.secretClient.getDeletedSecret(name).catch(() => undefined);
   }
 
   /**Get deleted Key*/
-  public async getDeletedKey(name: string) {
-    return await this.keyClient.getDeletedKey(name).catch(() => undefined);
+  public getDeletedKey(name: string) {
+    return this.keyClient.getDeletedKey(name).catch(() => undefined);
   }
 
   /**Get deleted Cert*/
-  public async getDeletedCert(name: string) {
-    return await this.certClient
-      .getDeletedCertificate(name)
-      .catch(() => undefined);
+  public getDeletedCert(name: string) {
+    return this.certClient.getDeletedCertificate(name).catch(() => undefined);
   }
 
   /**Recover the deleted Secret*/
   public async recoverDeletedSecret(name: string) {
-    //if (isDryRun) return undefined;
-
     const deleted = await this.getDeletedSecret(name);
-    //Recover deleted items
-    if (deleted) {
-      await (
-        await this.secretClient.beginRecoverDeletedSecret(deleted.name)
-      ).pollUntilDone();
-      return true;
-    }
-    return false;
+    if (!deleted) return false;
+    await (
+      await this.secretClient.beginRecoverDeletedSecret(deleted.name)
+    ).pollUntilDone();
+    return true;
   }
 
   /**Recover deleted Key*/
   public async recoverDeletedKey(name: string) {
-    //if (isDryRun) return undefined;
-
     const deleted = await this.getDeletedKey(name);
-    //Recover deleted items
-    if (deleted) {
-      await (
-        await this.keyClient.beginRecoverDeletedKey(deleted.name)
-      ).pollUntilDone();
-      return true;
-    }
-    return false;
+    if (!deleted) return false;
+    await (
+      await this.keyClient.beginRecoverDeletedKey(deleted.name)
+    ).pollUntilDone();
+    return true;
   }
 
   /**Recover deleted Cert*/
   public async recoverDeletedCert(name: string) {
-    //if (isDryRun) return undefined;
-
     const deleted = await this.getDeletedCert(name);
-    //Recover deleted items
-    if (deleted) {
-      await (
-        await this.certClient.beginRecoverDeletedCertificate(deleted.name)
-      ).pollUntilDone();
-      return true;
-    }
-    return false;
+    if (!deleted) return false;
+    await (
+      await this.certClient.beginRecoverDeletedCertificate(deleted.name!)
+    ).pollUntilDone();
+    return true;
   }
 
   /** Create or update the Secret. This will recover the deleted automatically.*/
   public async setSecret(
     name: string,
     value: string,
-    contentType: string | undefined = undefined,
-    tags: { [p: string]: string } | undefined = undefined,
+    contentType?: string,
+    tags?: { [p: string]: string },
   ) {
-    //if (isDryRun) return undefined;
-
-    //Try to recover the deleted secret
     await this.recoverDeletedSecret(name);
-    //Set a new value to the secret
-    return await this.secretClient.setSecret(name, value, {
+    this.cache.delete(`secret:${name}`);
+    return this.secretClient.setSecret(name, value, {
       enabled: true,
       contentType,
       tags,
     });
   }
 
-  /** Create Rsa Key*/
-  public async createRsaKey(
-    name: string,
-    args: KeyArgs | undefined = undefined,
-  ) {
-    //if (isDryRun) return undefined;
-
+  /** Create Rsa Key. This will recover the deleted automatically.*/
+  public async createRsaKey(name: string, args?: KeyArgs) {
     await this.recoverDeletedKey(name);
-    const expiresOn = new Date(
-      new Date().setFullYear(new Date().getFullYear() + 3),
-    );
+    this.cache.delete(`key:${name}`);
+    const expiresOn = new Date();
+    expiresOn.setFullYear(expiresOn.getFullYear() + 3);
 
-    return await this.keyClient.createRsaKey(name, {
+    return this.keyClient.createRsaKey(name, {
       enabled: true,
       tags: args?.tags,
-      keySize: args?.keySize ?? 2048,
-      keyOps: args?.keyOps ?? [
-        'decrypt',
-        'encrypt',
-        'sign',
-        'verify',
-        'wrapKey',
-        'unwrapKey',
-      ],
+      keySize: args?.keySize ?? 4096,
+      keyOps: args?.keyOps ?? ['wrapKey', 'unwrapKey'],
       expiresOn,
     });
   }
 
-  /** Create or update the Cert. This will recover the deleted automatically.*/
+  /** Create or update the self-signed Cert. This will recover the deleted automatically.*/
   public async createSelfSignCert(name: string, args: CertArgs) {
-    //if (isDryRun) return undefined;
-    //Try to recover the deleted secret
-    //await this.recoverDeletedCert(name);
-    //Set a new value to the secret
-    return await this.certClient.beginCreateCertificate(
+    await this.recoverDeletedCert(name);
+    this.cache.delete(`cert:${name}`);
+    return this.certClient.beginCreateCertificate(
       name,
       {
         enabled: true,
-        exportable: true,
+        exportable: args.exportable ?? true,
         keySize: args.keySize ?? 4096,
         keyType: args.keyType ?? 'RSA',
-        reuseKey: true,
+        reuseKey: args.reuseKey ?? false,
+        // Leaf certificate: no KeyCertSign/CRLSign (those make it CA-capable).
         keyUsage: [
-          KnownKeyUsageTypes.KeyCertSign,
-          KnownKeyUsageTypes.KeyAgreement,
-          KnownKeyUsageTypes.CRLSign,
-          KnownKeyUsageTypes.KeyEncipherment,
-          KnownKeyUsageTypes.DataEncipherment,
           KnownKeyUsageTypes.DigitalSignature,
+          KnownKeyUsageTypes.KeyEncipherment,
         ],
         enhancedKeyUsage: args.serverAuth
           ? ['1.3.6.1.5.5.7.3.1']
           : ['1.3.6.1.5.5.7.3.2'],
         contentType: 'application/x-pkcs12',
-        //certificateType: 'Self',
         issuerName: 'Self',
-        lifetimeActions: [
-          {
-            daysBeforeExpiry: 30,
-            action: 'AutoRenew',
-          },
-        ],
+        lifetimeActions: [{ daysBeforeExpiry: 30, action: 'AutoRenew' }],
         subjectAlternativeNames: {
           dnsNames: args.dnsNames ?? [args.subject],
         },
         subject: `CN=${args.subject}`,
         validityInMonths: args.validityInMonths,
       },
-      {
-        enabled: true,
-        tags: args.tags,
-      },
+      { enabled: true, tags: args.tags },
     );
   }
 
   /** Get Secret*/
-  public async getSecret(
-    name: string,
-    version: string | undefined = undefined,
-  ) {
-    let result = this.cache.getSecret(name);
-    if (result) return result;
-
-    result = await this.secretClient
-      .getSecret(name, { version })
-      .catch((err) => {
-        console.error(`${this.keyVaultName}: ${err.message || err}`);
-        return undefined;
-      });
-
-    if (result) this.cache.setSecret(result);
-    return result;
+  public getSecret(name: string, version?: string) {
+    return this.cached(`secret:${name}`, version, () =>
+      this.secretClient
+        .getSecret(name, { version })
+        .catch(logError(this.keyVaultName)),
+    );
   }
 
   /** Get Key*/
-  public async getKey(name: string, version: string | undefined = undefined) {
-    let result = this.cache.getKey(name);
-    if (result) return result;
-
-    result = await this.keyClient.getKey(name, { version }).catch((err) => {
-      console.error(`${this.keyVaultName}: ${err.message || err}`);
-      return undefined;
-    });
-
-    if (result) this.cache.setKey(result);
-    return result;
+  public getKey(name: string, version?: string) {
+    return this.cached(`key:${name}`, version, () =>
+      this.keyClient
+        .getKey(name, { version })
+        .catch(logError(this.keyVaultName)),
+    );
   }
 
   /** Get or create Key */
   public async getOrCreateKey(
     name: string,
+    /** @deprecated only RSA is supported; kept for backward compatibility. */
     _type: 'Rsa' = 'Rsa',
-    args: KeyArgs | undefined = undefined,
+    args?: KeyArgs,
   ) {
-    if (await this.checkKeyExist(name, undefined))
-      return await this.getKey(name, undefined);
-    return await this.createRsaKey(name, args);
+    if (await this.checkKeyExist(name)) return this.getKey(name);
+    return this.createRsaKey(name, args);
   }
 
   /** Get Cert*/
-  public async getCert(name: string) {
-    let result = this.cache.getCert(name);
-    if (result) return result;
-
-    result = await this.certClient.getCertificate(name).catch((err) => {
-      console.error(`${this.keyVaultName}: ${err.message || err}`);
-      return undefined;
-    });
-
-    if (result) this.cache.setCert(result);
-    return result;
+  public getCert(name: string) {
+    return this.cached(`cert:${name}`, undefined, () =>
+      this.certClient
+        .getCertificate(name)
+        .catch(logError(this.keyVaultName)),
+    );
   }
+
+  // Deletes are tolerant: a failure is logged as a warning and the call resolves.
 
   /** Delete Secret */
   public async deleteSecret(name: string) {
     if (isDryRun) return undefined;
-    await this.secretClient.beginDeleteSecret(name).catch((err) => {
-      console.warn(
-        `${this.keyVaultName} - failed to delete secret '${name}': ${err.message || err}`,
-      );
-    });
+    this.cache.delete(`secret:${name}`);
+    await this.secretClient
+      .beginDeleteSecret(name)
+      .catch(this.warnDeleteFailed('secret', name));
   }
 
   /** Delete Key */
   public async deleteKey(name: string) {
     if (isDryRun) return undefined;
-    await this.keyClient.beginDeleteKey(name).catch((err) => {
-      console.warn(
-        `${this.keyVaultName} - failed to delete key '${name}': ${err.message || err}`,
-      );
-    });
+    this.cache.delete(`key:${name}`);
+    await this.keyClient
+      .beginDeleteKey(name)
+      .catch(this.warnDeleteFailed('key', name));
   }
 
   /** Delete Cert */
   public async deleteCert(name: string) {
     if (isDryRun) return undefined;
-    await this.certClient.beginDeleteCertificate(name).catch((err) => {
-      console.warn(
-        `${this.keyVaultName} - failed to delete certificate '${name}': ${err.message || err}`,
-      );
-    });
+    this.cache.delete(`cert:${name}`);
+    await this.certClient
+      .beginDeleteCertificate(name)
+      .catch(this.warnDeleteFailed('certificate', name));
   }
 }
 
-export default (keyVaultName: string, apiVersion: string = '7.0') =>
+export default (keyVaultName: string, apiVersion?: string) =>
   new KeyVaultBase(keyVaultName, apiVersion);

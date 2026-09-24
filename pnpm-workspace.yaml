@@ -3,5 +3,3 @@ packages:
 allowBuilds:
   esbuild: true
   protobufjs: true
-minimumReleaseAgeExclude:
-  - '@pulumi/azure-native@3.21.0'

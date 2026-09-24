@@ -1,11 +1,11 @@
 import * as pulumi from '@pulumi/pulumi';
 import { BaseOptions, BaseResource, BaseProvider } from './BaseProvider';
+import { getCredential } from './AzBase/Helpers';
 import {
   CdnManagedHttpsParameters,
   CdnManagementClient,
   UserManagedHttpsParameters,
 } from '@azure/arm-cdn';
-import { DefaultAzureCredential } from '@azure/identity';
 
 export interface CdnHttpsEnableInputs {
   resourceGroupName: string;
@@ -22,7 +22,7 @@ export interface CdnHttpsEnableInputs {
   };
 }
 
-export type CdnHttpsEnableOutputs = CdnHttpsEnableInputs
+export type CdnHttpsEnableOutputs = CdnHttpsEnableInputs;
 
 class CdnHttpsEnableProvider
   implements BaseProvider<CdnHttpsEnableInputs, CdnHttpsEnableOutputs>
@@ -33,7 +33,7 @@ class CdnHttpsEnableProvider
     props: CdnHttpsEnableInputs,
   ): Promise<pulumi.dynamic.CreateResult> {
     const client = new CdnManagementClient(
-      new DefaultAzureCredential(),
+      getCredential(),
       props.subscriptionId,
     );
 
@@ -86,12 +86,12 @@ class CdnHttpsEnableProvider
     olds: CdnHttpsEnableOutputs,
     news: CdnHttpsEnableInputs,
   ): Promise<pulumi.dynamic.UpdateResult> {
-    await this.create(news).catch(() => undefined);
+    await this.create(news);
     return { outs: news };
   }
 }
 
-export default class CdnHttpsEnableResource extends BaseResource<
+export class CdnHttpsEnableResource extends BaseResource<
   CdnHttpsEnableInputs,
   CdnHttpsEnableOutputs
 > {
@@ -104,6 +104,7 @@ export default class CdnHttpsEnableResource extends BaseResource<
   ) {
     super(
       new CdnHttpsEnableProvider(name),
+      // Not `csp:` like the others: changing this name would change the URN and replace existing resources.
       `azure-native:custom:CdnHttpsEnableProvider:${name}`,
       props,
       opts,
@@ -111,3 +112,5 @@ export default class CdnHttpsEnableResource extends BaseResource<
     this.name = name;
   }
 }
+
+export default CdnHttpsEnableResource;

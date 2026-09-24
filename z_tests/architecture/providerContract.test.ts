@@ -40,15 +40,8 @@ describe('PULUMI-PROV-002 — dynamic-provider error handling', () => {
    * rather than listing filenames means a *new* zero-arg `.catch()` added to an
    * already-listed file still fails the test.
    */
-  const KNOWN_VIOLATIONS: Record<string, number> = {
-    // DRK-1038 [A1037-1]
-    'ApimSignInSettings.ts': 1,
-    'ApimSignUpSettings.ts': 1,
-    'AzBase/KeyVaultBase.ts': 3,
-    'VaultCert.ts': 1,
-    'VaultKey.ts': 1,
-    'VaultSecret.ts': 2,
-  };
+  // DRK-1038 [A1037-1]: baseline fully burned down — every zero-arg .catch() is gone.
+  const KNOWN_VIOLATIONS: Record<string, number> = {};
 
   const zeroArgCatch = /\.catch\(\s*\)/g;
 

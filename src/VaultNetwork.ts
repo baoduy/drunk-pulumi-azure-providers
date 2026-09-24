@@ -1,7 +1,7 @@
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import * as pulumi from '@pulumi/pulumi';
-import { KeyVaultManagementClient } from '@azure/arm-keyvault';
-import { DefaultAzureCredential } from '@azure/identity';
+import { KeyVaultManagementClient, NetworkRuleSet } from '@azure/arm-keyvault';
+import { diffProps, getCredential } from './AzBase/Helpers';
 
 interface VaultNetworkInputs {
   subscriptionId: string;
@@ -11,15 +11,52 @@ interface VaultNetworkInputs {
   subnetIds?: Array<string>;
 }
 
-type VaultNetworkOutputs = VaultNetworkInputs
+type VaultNetworkOutputs = VaultNetworkInputs;
+type RuleChange = Pick<VaultNetworkInputs, 'ipAddresses' | 'subnetIds'>;
 
-const updateSet = (
-  currentSet: Set<string>,
+const applyChange = (
+  current: string[] | undefined,
   oldItems: string[] | undefined,
   newItems: string[] | undefined,
 ) => {
-  oldItems?.forEach((item) => currentSet.delete(item));
-  newItems?.forEach((item) => currentSet.add(item));
+  const set = new Set(current);
+  oldItems?.forEach((item) => set.delete(item));
+  newItems?.forEach((item) => set.add(item));
+  return Array.from(set).sort();
+};
+
+/**
+ * Removes the rules this resource owned before (`olds`) and adds the ones it owns now (`news`),
+ * keeping rules managed elsewhere. Returns undefined when there is nothing to write.
+ */
+export const buildNetworkAcls = (
+  current: NetworkRuleSet | undefined,
+  olds: RuleChange,
+  news: RuleChange,
+): NetworkRuleSet | undefined => {
+  const ips = applyChange(
+    current?.ipRules?.map((i) => i.value),
+    olds.ipAddresses,
+    news.ipAddresses,
+  );
+  const subnets = applyChange(
+    current?.virtualNetworkRules?.map((i) => i.id),
+    olds.subnetIds,
+    news.subnetIds,
+  );
+
+  // No ACLs on the vault and nothing to add: leave the vault untouched.
+  if (!current && ips.length === 0 && subnets.length === 0) return undefined;
+
+  return {
+    // IP/subnet rules only restrict access when the default action is Deny.
+    ...(current ?? { bypass: 'AzureServices', defaultAction: 'Deny' }),
+    ipRules: ips.map((value) => ({ value })),
+    virtualNetworkRules: subnets.map((id) => ({
+      id,
+      ignoreMissingVnetServiceEndpoint: true,
+    })),
+  };
 };
 
 class VaultNetworkProvider
@@ -28,79 +65,59 @@ class VaultNetworkProvider
   constructor(private name: string) {}
 
   public async create(inputs: VaultNetworkInputs) {
-    await this.update(
-      this.name,
-      {
-        ...inputs,
-        ipAddresses: undefined,
-        subnetIds: undefined,
-      },
-      inputs,
-    );
-    return {
-      id: this.name,
-      outs: inputs,
-    };
+    await this.apply(inputs, {}, inputs);
+    return { id: this.name, outs: inputs };
   }
 
-  public async update(
-    id: string,
+  /** Pointing at a different vault replaces the resource (rules added there, removed here). */
+  public async diff(
+    _id: string,
     olds: VaultNetworkOutputs,
     news: VaultNetworkInputs,
   ) {
-    const subscriptionId = olds.subscriptionId ?? news.subscriptionId;
-    const resourceGroupName = olds.resourceGroupName ?? news.resourceGroupName;
-    const vaultName = olds.vaultName ?? news.vaultName;
+    return diffProps(olds, news, {
+      replaceKeys: ['subscriptionId', 'resourceGroupName', 'vaultName'],
+    });
+  }
 
+  public async update(
+    _id: string,
+    olds: VaultNetworkOutputs,
+    news: VaultNetworkInputs,
+  ) {
+    await this.apply(news, olds, news);
+    return { outs: news };
+  }
+
+  public async delete(_id: string, props: VaultNetworkOutputs) {
+    await this.apply(props, props, {});
+  }
+
+  // ponytail: read-modify-write of the vault ACLs; parallel VaultNetworkResources on the same vault can race. Use dependsOn between them.
+  private async apply(
+    vault: VaultNetworkInputs,
+    olds: RuleChange,
+    news: RuleChange,
+  ) {
     const client = new KeyVaultManagementClient(
-      new DefaultAzureCredential(),
-      subscriptionId,
+      getCredential(),
+      vault.subscriptionId,
     );
-    const vaultInfo = await client.vaults.get(resourceGroupName, vaultName);
-    //Collect current infos
-    const currentIps = new Set<string>(
-      vaultInfo.properties.networkAcls?.ipRules?.map((i) => i.value),
+    const vaultInfo = await client.vaults.get(
+      vault.resourceGroupName,
+      vault.vaultName,
     );
-    const currentSubnets = new Set<string>(
-      vaultInfo.properties.networkAcls?.virtualNetworkRules?.map((i) => i.id),
+    const networkAcls = buildNetworkAcls(
+      vaultInfo.properties.networkAcls,
+      olds,
+      news,
     );
 
-    updateSet(currentIps, olds.ipAddresses, news.ipAddresses);
-    updateSet(currentSubnets, olds.subnetIds, news.subnetIds);
-
-    //Update the new VaultInfo
-    let updated = false;
-    const networkAcls = vaultInfo.properties.networkAcls ?? {
-      bypass: 'AzureServices',
-      defaultAction: 'Allow',
-    };
-    if (currentIps.size > 0) {
-      updated = true;
-      networkAcls.ipRules = Array.from(currentIps)
-        .sort()
-        .map((i) => ({ value: i }));
-    }
-    if (currentSubnets.size > 0) {
-      updated = true;
-      networkAcls.virtualNetworkRules = Array.from(currentSubnets)
-        .sort()
-        .map((i) => ({ id: i, ignoreMissingVnetServiceEndpoint: true }));
-    }
-    if (updated) {
-      await client.vaults.update(resourceGroupName, vaultName, {
+    if (networkAcls) {
+      await client.vaults.update(vault.resourceGroupName, vault.vaultName, {
         properties: { networkAcls },
       });
     }
-
-    return { id, outs: { ...olds, ...news } };
-  }
-
-  public async delete(id: string, props: VaultNetworkOutputs) {
-    await this.update(id, props, {
-      ...props,
-      ipAddresses: undefined,
-      subnetIds: undefined,
-    });
   }
 }
 

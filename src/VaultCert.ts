@@ -1,6 +1,6 @@
 import * as pulumi from '@pulumi/pulumi';
 import getKeyVaultBase, { CertArgs } from './AzBase/KeyVaultBase';
-import { helpers } from './AzBase';
+import { diffProps, waitAndRetry } from './AzBase/Helpers';
 import { BaseOptions, BaseProvider, BaseResource } from './BaseProvider';
 import { KeyVaultCertificateWithPolicy } from '@azure/keyvault-certificates';
 
@@ -12,6 +12,7 @@ interface VaultCertInputs {
 
 interface VaultCertOutputs {
   id: string;
+  cert: CertArgs;
   name: string;
   vaultName: string;
   vaultUrl: string;
@@ -40,12 +41,13 @@ export class VaultCertResourceProvider
 
     //Await and re-load
     if (!cert) {
-      cert = await helpers.waitAndRetry(() => client.getCert(props.name));
+      cert = await waitAndRetry(() => client.getCert(props.name));
     }
 
     return {
       id: cert!.id ?? cert!.properties.id!,
       outs: {
+        cert: props.cert,
         id: cert!.id ?? cert!.properties.id!,
         name: cert!.name!,
         version: cert!.properties.version!,
@@ -53,6 +55,14 @@ export class VaultCertResourceProvider
         vaultUrl: cert!.properties.vaultUrl!,
       },
     };
+  }
+
+  /** Renaming or moving the cert replaces it (new created, old deleted). */
+  async diff(_id: string, olds: VaultCertOutputs, news: VaultCertInputs) {
+    return diffProps(olds, news, {
+      replaceKeys: ['name', 'vaultName'],
+      outputKeys: ['id', 'version', 'vaultUrl'],
+    });
   }
 
   public async update(

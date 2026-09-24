@@ -1,23 +1,15 @@
 import { ContainerServiceClient } from '@azure/arm-containerservice';
-import { DefaultAzureCredential } from '@azure/identity';
-import { ResourceArgs, ResourceInfo } from '../types';
-import { getResourceInfoFromId } from './Helpers';
+import { ResourceArgs } from '../types';
+import { getCredential, searchResources } from './Helpers';
 
 export class Aks {
   private _client: ContainerServiceClient;
   constructor(subscriptionId: string) {
-    this._client = new ContainerServiceClient(
-      new DefaultAzureCredential(),
-      subscriptionId,
-    );
+    this._client = new ContainerServiceClient(getCredential(), subscriptionId);
   }
 
-  public async search(filter: string | undefined = undefined) {
-    const list = new Array<ResourceInfo>();
-    for await (const aks of this._client.managedClusters.list().byPage()) {
-      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
-    }
-    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+  public search(filter?: string) {
+    return searchResources(this._client.managedClusters.list(), filter);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,6 +19,7 @@ export class Aks {
       args.resourceName,
     );
   }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public start(args: ResourceArgs): Promise<any> {
     return this._client.managedClusters.beginStart(

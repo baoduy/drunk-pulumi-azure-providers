@@ -1,23 +1,18 @@
 import { MySQLManagementFlexibleServerClient } from '@azure/arm-mysql-flexible';
-import { DefaultAzureCredential } from '@azure/identity';
-import { ResourceArgs, ResourceInfo } from '../types';
-import { getResourceInfoFromId } from './Helpers';
+import { ResourceArgs } from '../types';
+import { getCredential, searchResources } from './Helpers';
 
 export class MySqlFlexible {
   private _client: MySQLManagementFlexibleServerClient;
   constructor(subscriptionId: string) {
     this._client = new MySQLManagementFlexibleServerClient(
-      new DefaultAzureCredential(),
+      getCredential(),
       subscriptionId,
     );
   }
 
-  public async search(filter: string | undefined = undefined) {
-    const list = new Array<ResourceInfo>();
-    for await (const aks of this._client.servers.list().byPage()) {
-      list.push(...aks.map((a) => getResourceInfoFromId(a.id!)));
-    }
-    return filter ? list.filter((a) => a.resourceName.includes(filter)) : list;
+  public search(filter?: string) {
+    return searchResources(this._client.servers.list(), filter);
   }
 
   public stop(args: ResourceArgs) {

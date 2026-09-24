@@ -79,136 +79,104 @@ describe('VaultSecretResourceProvider', () => {
     });
   });
 
-  describe('update', () => {
+  // Renames/moves are replacements decided in diff(); Pulumi then runs create (new)
+  // and delete (old) itself, so update() only ever rewrites the value in place.
+  describe('diff', () => {
     const olds = {
       name: 'my-secret',
+      value: 'v',
       vaultName: 'my-vault',
       version: 'v1',
       vaultUrl: 'https://my-vault.vault.azure.net',
     };
 
-    it('short-circuits on olds.ignoreChange without touching the client', async () => {
-      const result = await provider().update(
-        'id',
-        { ...olds, ignoreChange: true },
-        { name: 'my-secret', value: 'v', vaultName: 'my-vault' },
-      );
-
-      expect(result).to.deep.equal({ outs: { ...olds, ignoreChange: true } });
-      expect(setSecretStub.called).to.be.false;
-      expect(deleteSecretStub.called).to.be.false;
-    });
-
-    it('short-circuits on news.ignoreChange without touching the client', async () => {
-      const result = await provider().update('id', olds, {
+    it('reports no changes when only output fields differ', async () => {
+      const result = await provider().diff('id', olds, {
         name: 'my-secret',
         value: 'v',
         vaultName: 'my-vault',
-        ignoreChange: true,
       });
 
-      expect(result).to.deep.equal({ outs: olds });
-      expect(setSecretStub.called).to.be.false;
+      expect(result).to.deep.equal({ changes: false, replaces: [] });
     });
 
-    it('skips create/delete entirely when ignoreChange is set on both sides', async () => {
-      const olds2 = { ...olds, ignoreChange: true };
-
-      const result = await provider().update('id', olds2, {
-        name: 'my-secret',
+    it('short-circuits on news.ignoreChange without touching the client', async () => {
+      sinon.stub(console, 'log');
+      const result = await provider().diff('id', olds, {
+        name: 'renamed',
         value: 'new-value',
         vaultName: 'my-vault',
         ignoreChange: true,
       });
 
-      expect(result.outs).to.deep.equal(olds2);
+      expect(result).to.deep.equal({ changes: false });
       expect(setSecretStub.called).to.be.false;
       expect(deleteSecretStub.called).to.be.false;
     });
 
-    it('creates the new secret then deletes the old one when the name changes', async () => {
-      setSecretStub.resolves({
-        properties: { id: 'new-id', version: 'v2', vaultUrl: 'u2' },
-      });
-      deleteSecretStub.resolves(undefined);
+    it('applies changes again once ignoreChange is turned off', async () => {
+      const result = await provider().diff(
+        'id',
+        { ...olds, ignoreChange: true },
+        { name: 'my-secret', value: 'new-value', vaultName: 'my-vault' },
+      );
 
-      await provider().update('id', olds, {
+      expect(result.changes).to.be.true;
+    });
+
+    it('updates in place when only the value changes', async () => {
+      const result = await provider().diff('id', olds, {
+        name: 'my-secret',
+        value: 'new-value',
+        vaultName: 'my-vault',
+      });
+
+      expect(result).to.deep.equal({ changes: true, replaces: [] });
+    });
+
+    it('replaces the secret when the name changes', async () => {
+      const result = await provider().diff('id', olds, {
         name: 'renamed-secret',
         value: 'v',
         vaultName: 'my-vault',
       });
 
-      expect(
-        setSecretStub.calledOnceWithExactly(
-          'renamed-secret',
-          'v',
-          undefined,
-          undefined,
-        ),
-      ).to.be.true;
-      expect(deleteSecretStub.calledOnceWithExactly('my-secret')).to.be.true;
-      expect(setSecretStub.calledBefore(deleteSecretStub)).to.be.true;
+      expect(result.replaces).to.deep.equal(['name']);
     });
 
-    it('creates the new secret then deletes the old one when the vault changes', async () => {
-      setSecretStub.resolves({
-        properties: { id: 'new-id', version: 'v2', vaultUrl: 'u2' },
-      });
-      deleteSecretStub.resolves(undefined);
-
-      await provider().update('id', olds, {
+    it('replaces the secret when the vault changes', async () => {
+      const result = await provider().diff('id', olds, {
         name: 'my-secret',
         value: 'v',
         vaultName: 'new-vault',
       });
 
-      expect(deleteSecretStub.calledOnceWithExactly('my-secret')).to.be.true;
+      expect(result.replaces).to.deep.equal(['vaultName']);
     });
+  });
 
-    it('does not delete the old secret when name and vault are unchanged', async () => {
+  describe('update', () => {
+    it('writes the new value in place and never deletes', async () => {
       setSecretStub.resolves({
         properties: { id: 'new-id', version: 'v2', vaultUrl: 'u2' },
       });
 
-      await provider().update('id', olds, {
-        name: 'my-secret',
-        value: 'v',
-        vaultName: 'my-vault',
-      });
-
-      expect(deleteSecretStub.called).to.be.false;
-    });
-
-    it('tolerates the superseded-secret delete failing: warns and still returns the new outputs', async () => {
-      setSecretStub.resolves({
-        properties: {
-          id: 'new-id',
-          version: 'v2',
-          vaultUrl: 'https://vault1.vault.azure.net',
-        },
-      });
-      deleteSecretStub.rejects(new Error('old secret locked'));
-      const warnSpy = sinon.stub(console, 'warn');
-
       const result = await provider().update(
-        'id1',
-        {
-          name: 'old-name',
-          vaultName: 'vault1',
-          version: 'v1',
-          vaultUrl: 'https://vault1.vault.azure.net',
-        },
-        { name: 'new-name', value: 'new-value', vaultName: 'vault1' },
+        'id',
+        { name: 'my-secret', vaultName: 'my-vault', version: 'v1', vaultUrl: 'u' },
+        { name: 'my-secret', value: 'new-value', vaultName: 'my-vault' },
       );
 
+      expect(
+        setSecretStub.calledOnceWithExactly(
+          'my-secret',
+          'new-value',
+          undefined,
+          undefined,
+        ),
+      ).to.be.true;
+      expect(deleteSecretStub.called).to.be.false;
       expect(result.outs.version).to.equal('v2');
-      expect(result.outs.name).to.equal('new-name');
-      expect(warnSpy.calledOnce).to.equal(true);
-      const message = warnSpy.firstCall.args[0] as string;
-      expect(message).to.include('old-name');
-      expect(message).to.include('vault1');
-      expect(message).to.include('old secret locked');
-      expect(message).to.not.include('new-value');
     });
   });
 

@@ -5,9 +5,12 @@ import { KeyClient } from '@azure/keyvault-keys';
 import { CertificateClient } from '@azure/keyvault-certificates';
 import { KeyVaultBase } from '../src/AzBase/KeyVaultBase';
 
-// Fakes a PagedAsyncIterableIterator's `.byPage()` shape: one page per array.
+// Fakes a PagedAsyncIterableIterator: iterable item-by-item, or page-by-page via `.byPage()`.
 function fakePages<T>(pages: T[][]) {
   return {
+    [Symbol.asyncIterator]: async function* () {
+      for (const page of pages) yield* page;
+    },
     byPage: () => ({
       [Symbol.asyncIterator]: async function* () {
         for (const page of pages) yield page;
@@ -199,15 +202,8 @@ describe('KeyVaultBase', () => {
 
       const call = createRsaKey.getCall(0);
       expect(call.args[0]).to.equal('my-key');
-      expect(call.args[1]).to.include({ enabled: true, keySize: 2048 });
-      expect(call.args[1].keyOps).to.deep.equal([
-        'decrypt',
-        'encrypt',
-        'sign',
-        'verify',
-        'wrapKey',
-        'unwrapKey',
-      ]);
+      expect(call.args[1]).to.include({ enabled: true, keySize: 4096 });
+      expect(call.args[1].keyOps).to.deep.equal(['wrapKey', 'unwrapKey']);
     });
 
     it('honors a custom keySize and keyOps', async () => {
@@ -229,21 +225,51 @@ describe('KeyVaultBase', () => {
   });
 
   describe('createSelfSignCert', () => {
-    it('does not attempt soft-delete recovery (left to DRK-1038 scope)', async () => {
-      const getDeletedCertificate = stub(
+    it('recovers a soft-deleted cert before creating', async () => {
+      stub(CertificateClient.prototype, 'getDeletedCertificate').resolves({
+        name: 'my-cert',
+      } as any);
+      const pollUntilDone = sinon.stub().resolves(undefined);
+      const recover = stub(
         CertificateClient.prototype,
-        'getDeletedCertificate',
-      );
-      stub(CertificateClient.prototype, 'beginCreateCertificate').resolves(
-        {} as any,
-      );
+        'beginRecoverDeletedCertificate',
+      ).resolves({ pollUntilDone } as any);
+      const create = stub(
+        CertificateClient.prototype,
+        'beginCreateCertificate',
+      ).resolves({} as any);
 
       await vault.createSelfSignCert('my-cert', { subject: 'CN=test' });
 
-      expect(getDeletedCertificate.called).to.be.false;
+      expect(recover.calledOnceWithExactly('my-cert')).to.be.true;
+      expect(pollUntilDone.calledOnce).to.be.true;
+      expect(recover.calledBefore(create)).to.be.true;
+    });
+
+    it('uses leaf-only key usage and rotates the key on renewal by default', async () => {
+      stub(CertificateClient.prototype, 'getDeletedCertificate').rejects(
+        new Error('not found'),
+      );
+      const create = stub(
+        CertificateClient.prototype,
+        'beginCreateCertificate',
+      ).resolves({} as any);
+
+      await vault.createSelfSignCert('my-cert', { subject: 'CN=test' });
+
+      const policy = create.getCall(0).args[1];
+      expect(policy.keyUsage).to.deep.equal([
+        'digitalSignature',
+        'keyEncipherment',
+      ]);
+      expect(policy.reuseKey).to.equal(false);
+      expect(policy.exportable).to.equal(true);
     });
 
     it('applies secure-by-default policy (4096-bit RSA, client auth EKU)', async () => {
+      stub(CertificateClient.prototype, 'getDeletedCertificate').rejects(
+        new Error('not found'),
+      );
       const beginCreateCertificate = stub(
         CertificateClient.prototype,
         'beginCreateCertificate',
@@ -263,6 +289,9 @@ describe('KeyVaultBase', () => {
     });
 
     it('switches the EKU to server auth when serverAuth is set', async () => {
+      stub(CertificateClient.prototype, 'getDeletedCertificate').rejects(
+        new Error('not found'),
+      );
       const beginCreateCertificate = stub(
         CertificateClient.prototype,
         'beginCreateCertificate',
