@@ -10,6 +10,8 @@
   "include": [
     "src/*.ts",
     "src/*.d.ts",
+    "src/AzBase/*.ts",
+    "z_tests/**/*.ts",
   ],
   "exclude": [
     "node_modules",

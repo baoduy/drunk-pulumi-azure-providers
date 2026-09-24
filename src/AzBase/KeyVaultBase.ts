@@ -5,7 +5,7 @@ import {
   CertificateClient,
   KnownKeyUsageTypes,
 } from '@azure/keyvault-certificates';
-import { collect, getCredential, ignoreNotFound } from './Helpers';
+import { collect, getCredential } from './Helpers';
 
 // Consumers may call KeyVaultBase directly from a Pulumi program; never delete during preview.
 const isDryRun = Boolean(process.env.PULUMI_NODEJS_DRY_RUN);
@@ -52,9 +52,17 @@ export class KeyVaultBase {
   private secretClient: SecretClient;
   private keyClient: KeyClient;
   private certClient: CertificateClient;
+  /** Per-instance read cache for latest (unversioned) secrets/keys/certs; writes invalidate it. */
+  private cache = new Map<string, unknown>();
 
-  /** @param keyVaultName vault name (public Azure cloud) or the full vault URL for sovereign clouds. */
-  public constructor(private keyVaultName: string) {
+  /**
+   * @param keyVaultName vault name (public Azure cloud) or the full vault URL for sovereign clouds.
+   * @param _apiVersion unused (the SDK picks the API version); kept for backward compatibility.
+   */
+  public constructor(
+    private keyVaultName: string,
+    _apiVersion?: string,
+  ) {
     const url = keyVaultName.startsWith('https://')
       ? keyVaultName
       : `https://${keyVaultName}.vault.azure.net`;
@@ -64,6 +72,26 @@ export class KeyVaultBase {
     this.keyClient = new KeyClient(url, credential);
     this.certClient = new CertificateClient(url, credential);
   }
+
+  private async cached<T>(
+    key: string,
+    version: string | undefined,
+    load: () => Promise<T | undefined>,
+  ): Promise<T | undefined> {
+    // A specific version must never be served from the "latest" cache entry.
+    if (version) return load();
+    if (this.cache.has(key)) return this.cache.get(key) as T;
+    const result = await load();
+    if (result) this.cache.set(key, result);
+    return result;
+  }
+
+  private warnDeleteFailed =
+    (kind: string, name: string) => (err: { message?: string }) => {
+      console.warn(
+        `${this.keyVaultName} - failed to delete ${kind} '${name}': ${err.message || err}`,
+      );
+    };
 
   public listSecrets() {
     return collect(this.secretClient.listPropertiesOfSecrets());
@@ -193,6 +221,7 @@ export class KeyVaultBase {
     tags?: { [p: string]: string },
   ) {
     await this.recoverDeletedSecret(name);
+    this.cache.delete(`secret:${name}`);
     return this.secretClient.setSecret(name, value, {
       enabled: true,
       contentType,
@@ -203,6 +232,7 @@ export class KeyVaultBase {
   /** Create Rsa Key. This will recover the deleted automatically.*/
   public async createRsaKey(name: string, args?: KeyArgs) {
     await this.recoverDeletedKey(name);
+    this.cache.delete(`key:${name}`);
     const expiresOn = new Date();
     expiresOn.setFullYear(expiresOn.getFullYear() + 3);
 
@@ -218,6 +248,7 @@ export class KeyVaultBase {
   /** Create or update the self-signed Cert. This will recover the deleted automatically.*/
   public async createSelfSignCert(name: string, args: CertArgs) {
     await this.recoverDeletedCert(name);
+    this.cache.delete(`cert:${name}`);
     return this.certClient.beginCreateCertificate(
       name,
       {
@@ -249,16 +280,20 @@ export class KeyVaultBase {
 
   /** Get Secret*/
   public getSecret(name: string, version?: string) {
-    return this.secretClient
-      .getSecret(name, { version })
-      .catch(logError(this.keyVaultName));
+    return this.cached(`secret:${name}`, version, () =>
+      this.secretClient
+        .getSecret(name, { version })
+        .catch(logError(this.keyVaultName)),
+    );
   }
 
   /** Get Key*/
   public getKey(name: string, version?: string) {
-    return this.keyClient
-      .getKey(name, { version })
-      .catch(logError(this.keyVaultName));
+    return this.cached(`key:${name}`, version, () =>
+      this.keyClient
+        .getKey(name, { version })
+        .catch(logError(this.keyVaultName)),
+    );
   }
 
   /** Get or create Key */
@@ -274,30 +309,42 @@ export class KeyVaultBase {
 
   /** Get Cert*/
   public getCert(name: string) {
-    return this.certClient
-      .getCertificate(name)
-      .catch(logError(this.keyVaultName));
+    return this.cached(`cert:${name}`, undefined, () =>
+      this.certClient
+        .getCertificate(name)
+        .catch(logError(this.keyVaultName)),
+    );
   }
 
-  /** Delete Secret (ignores not-found) */
+  // Deletes are tolerant: a failure is logged as a warning and the call resolves.
+
+  /** Delete Secret */
   public async deleteSecret(name: string) {
-    if (isDryRun) return;
-    await this.secretClient.beginDeleteSecret(name).catch(ignoreNotFound);
+    if (isDryRun) return undefined;
+    this.cache.delete(`secret:${name}`);
+    await this.secretClient
+      .beginDeleteSecret(name)
+      .catch(this.warnDeleteFailed('secret', name));
   }
 
-  /** Delete Key (ignores not-found) */
+  /** Delete Key */
   public async deleteKey(name: string) {
-    if (isDryRun) return;
-    await this.keyClient.beginDeleteKey(name).catch(ignoreNotFound);
+    if (isDryRun) return undefined;
+    this.cache.delete(`key:${name}`);
+    await this.keyClient
+      .beginDeleteKey(name)
+      .catch(this.warnDeleteFailed('key', name));
   }
 
-  /** Delete Cert (ignores not-found) */
+  /** Delete Cert */
   public async deleteCert(name: string) {
-    if (isDryRun) return;
-    await this.certClient.beginDeleteCertificate(name).catch(ignoreNotFound);
+    if (isDryRun) return undefined;
+    this.cache.delete(`cert:${name}`);
+    await this.certClient
+      .beginDeleteCertificate(name)
+      .catch(this.warnDeleteFailed('certificate', name));
   }
 }
 
-/** `_apiVersion` is unused (the SDK picks the API version); kept for backward compatibility. */
-export default (keyVaultName: string, _apiVersion?: string) =>
-  new KeyVaultBase(keyVaultName);
+export default (keyVaultName: string, apiVersion?: string) =>
+  new KeyVaultBase(keyVaultName, apiVersion);

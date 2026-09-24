@@ -15,11 +15,12 @@ pnpm install                # install deps (pnpm workspace)
 pnpm run build              # regenerate tsconfig files list, tsc build to .out-bin, copy package.json + README
 pnpm run lint               # eslint --fix on src/
 pnpm run test               # mocha over z_tests/**/*.test.ts (tsx loader, TSX_TSCONFIG_PATH=tsconfig.test.json)
+pnpm run test-cover         # same, under c8 coverage
 pnpm run check              # depcheck for unused/missing deps
 pnpm run update             # npm-check-updates -u && pnpm install
 ```
 
-Run a single test file: `cross-env NODE_OPTIONS='--import tsx' TSX_TSCONFIG_PATH='./tsconfig.test.json' mocha --timeout 60000 'z_tests/Helpers.test.ts'`. Tests in `z_tests/` cover the pure logic (helpers, VaultNetwork ACL merge, SSH/PGP key generation) — no Azure calls.
+Run a single test file: `cross-env NODE_OPTIONS='--import tsx' TSX_TSCONFIG_PATH='./tsconfig.test.json' mocha --timeout 60000 'z_tests/Helpers.test.ts'`. Tests in `z_tests/` never call Azure: pure logic (helpers, VaultNetwork ACL merge, SSH/PGP key generation) is tested directly, and providers/`KeyVaultBase` are tested with sinon stubs on the SDK client prototypes (provider classes are exported with `/** @internal */` as the test seam). `z_tests/architecture/` holds repo-wide rules (e.g. no zero-arg `.catch()`).
 
 Manual verification against real Azure, from `pulumi-test/`: `pulumi up --yes --skip-preview` (`up`), `pulumi destroy --yes --skip-preview` (`destroy`). Requires the root `pnpm run build` to have run first so `.out-bin` is current.
 
