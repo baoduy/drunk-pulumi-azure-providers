@@ -50,6 +50,7 @@ For deeper conventions (naming, resource-id format, Azure SDK integration patter
 ## Notes
 
 - `src/AzBase/Internal.ts.ignore` and `src/NetworkRoute.ts.ignore` are excluded from the build/lint on purpose (`.ignore` suffix) — work in progress, not part of the current public API.
+- TypeScript 7 (native) has no compiler API yet, so both `package.json`s use the side-by-side setup from the [TS 7](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0) / [Pulumi](https://www.pulumi.com/docs/iac/languages-sdks/javascript/#using-typescript-7) docs: `@typescript/native` → `typescript@7` provides `tsc`, and `typescript` is aliased to `@typescript/typescript6` for tools that need the API (typescript-eslint; Pulumi's runtime TS compilation in `pulumi-test`). Don't replace the alias with plain `typescript@7` until 7.1 ships an API and those tools support it.
 - `@pulumi/pulumi` is a peerDependency (a second copy in the consumer breaks `Output`/dynamic-provider identity) — keep it out of `dependencies`.
 - CI (`.github/workflows/build-publish.yml`) lints, tests and builds on PRs; on `main` it also publishes to npm (with provenance) and then tags the release. Actions are pinned to commit SHAs.
 
